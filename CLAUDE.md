@@ -37,17 +37,15 @@ Ein rundenbasiertes Rogue-lite mit echtem Pen & Paper-Gefühl:
 3. Danach: Gruppendynamik, Roster-Management, ggf. Permadeath.
 4. Danach: Meta-Progression, Kartenpacks, Freischaltungen.
 
-## Tech-Stack-Entscheidung (Stand: noch nicht final)
+## Tech-Stack-Entscheidung
 
 - **Plattform-Ziel:** Steam (PC).
 - **Spiel ist reines 2D** (Entscheidung gefallen – schnellere Entwicklung, keine 3D-Asset-Erstellung nötig).
-- **Engine:** Tendenz zu **Godot** (statt Unity), aus folgenden Gründen:
-  - Kein aufwändiger Installationsprozess (portable, keine Account-Pflicht) – wichtig für schnelles Prototyping.
-  - Ein-Script-pro-Node-Prinzip erzwingt tendenziell übersichtlichere Struktur als Unitys freies Komponenten-Stacking.
-  - Kostenlos, Open Source, kein Lizenzthema bei Steam-Release.
-  - Sehr gut für reines 2D geeignet, unterstützt C# (Nutzer kennt C#) oder GDScript.
-  - **Noch nicht final entschieden** – sollte vor dem Umstieg vom Browser-Prototyp auf die Engine bestätigt werden.
-- **Arbeitsweise:** Claude arbeitet über Claude Code direkt im lokalen Projektordner (volle Dateisystem-Operationen: anlegen, verschieben, löschen, nicht nur Code-Dateien), Git/GitHub dient als Remote/Backup.
+- **Engine: Godot mit C# – Entscheidung gefallen (Stand jetzt).**
+  - Sprache: **C#** (Nutzer kennt C# bereits aus Unity, keine Einarbeitung in GDScript nötig).
+  - Gründe: kein aufwändiger Installationsprozess (portable, keine Account-Pflicht wie bei Unity Hub) – wichtig für schnellen Einstieg; kostenlos, Open Source, kein Lizenzthema bei Steam-Release; gut für reines 2D geeignet; Ein-Script-pro-Node-Prinzip erzwingt tendenziell übersichtlichere Struktur als Unitys freies Komponenten-Stacking.
+  - **Ausstiegsklausel:** Falls sich im Laufe der Entwicklung herausstellt, dass Godot nicht passt, bleibt es beim Godot-Prototyp – das eigentliche Spiel wird dann in Unity **neu aufgesetzt**, nicht aus dem Godot-Stand heraus migriert. Der Godot-Teil ist in diesem Fall Lernprojekt/Wegwerf-Prototyp, kein Unterbau für Unity.
+- **Arbeitsweise:** Claude Code arbeitet ausschließlich über Zugriff auf das **Git-Repository** (GitHub), **nicht** auf lokale Ordner/Dateien auf dem Rechner des Nutzers. Alle Änderungen (Code, Szenen, Assets, Doku) erfolgen als Commits/Pushes im Repo. Der Nutzer zieht sich Änderungen selbst lokal (`git pull`), um das Godot-Projekt zu öffnen, zu testen und ggf. eigene Anpassungen vorzunehmen und zurückzupushen.
 - Vorgeschlagene Ordnerstruktur (feature-basiert, engine-agnostisch):
   ```
   /scripts
@@ -67,11 +65,10 @@ Ein spielbarer HTML/JS-Prototyp existiert bereits (Datei: `dice-and-cards-protot
 - Deck aus 10 Karten (Hieb x4, Wuchtschlag x2, Parade x2, Finte x1, Atem holen x1 [Exhaust]).
 - Reines Vanilla HTML/CSS/JS, keine Frameworks – Logik lässt sich konzeptionell auf GDScript/C# übertragen.
 
-**Nächster Schritt:** Diese Datei ins Repo legen, das Kampfsystem am Prototyp weiter testen/verfeinern, dann finale Engine-Entscheidung treffen und die Logik nach Godot (oder gewählter Engine) übertragen.
+**Nächster Schritt:** Godot-Projekt im Repo aufsetzen und die Logik aus dem Prototyp (Stats, Karten, Würfel-Resolution) nach C#/Godot übertragen.
 
 ## Offene Punkte
 
-- Finale Engine-Bestätigung (Godot vs. Alternative).
 - Konkrete Klassen über den Krieger hinaus definieren.
 - Dungeon-Generierungsalgorithmus (Layout, Encounter-Verteilung).
 - Balancing von Karten-Synergien und Progressionskurve.
