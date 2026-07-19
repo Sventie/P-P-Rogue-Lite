@@ -38,6 +38,9 @@ public partial class Main : Control
     private HBoxContainer _handContainer = null!;
     private Button _restartButton = null!;
 
+    private static readonly Color HpGoodColor = new(0.352941f, 0.478431f, 0.309804f);
+    private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
+
     private static readonly (Ability Ability, string Label)[] StatOrder =
     {
         (Ability.Strength, "Stärke"),
@@ -62,7 +65,7 @@ public partial class Main : Control
         _enemyHpBar = GetNode<ProgressBar>("MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox/EnemyHpBar");
         _rollReadoutLabel = GetNode<Label>("MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox/RollReadoutLabel");
 
-        _logLabel = GetNode<RichTextLabel>("MarginContainer/VBoxContainer/LogLabel");
+        _logLabel = GetNode<RichTextLabel>("MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox/LogLabel");
         _handLabel = GetNode<Label>("MarginContainer/VBoxContainer/HandLabel");
         _handContainer = GetNode<HBoxContainer>("MarginContainer/VBoxContainer/HandContainer");
         _restartButton = GetNode<Button>("MarginContainer/VBoxContainer/RestartButton");
@@ -216,10 +219,25 @@ public partial class Main : Control
         _hpLabel.Text = $"Trefferpunkte: {_player.Hp} / {_player.MaxHp}";
         _playerHpBar.MaxValue = _player.MaxHp;
         _playerHpBar.Value = _player.Hp;
+        SetHpBarColor(_playerHpBar, _player.Hp <= _player.MaxHp * 0.35);
 
         _enemyHpLabel.Text = $"Trefferpunkte: {_enemy.Hp} / {_enemy.MaxHp}";
         _enemyHpBar.MaxValue = _enemy.MaxHp;
         _enemyHpBar.Value = _enemy.Hp;
+        SetHpBarColor(_enemyHpBar, _enemy.Hp <= _enemy.MaxHp * 0.35);
+    }
+
+    private static void SetHpBarColor(ProgressBar bar, bool low)
+    {
+        var fill = new StyleBoxFlat
+        {
+            BgColor = low ? HpBadColor : HpGoodColor,
+            CornerRadiusTopLeft = 2,
+            CornerRadiusTopRight = 2,
+            CornerRadiusBottomRight = 2,
+            CornerRadiusBottomLeft = 2,
+        };
+        bar.AddThemeStyleboxOverride("fill", fill);
     }
 
     private void RenderCounts()
@@ -244,7 +262,8 @@ public partial class Main : Control
                 Text = card.DisplayName,
                 TooltipText = $"{card.CardType}\n{card.Description}\n{card.RequirementText}",
                 Disabled = _turnLocked || _gameOver,
-                CustomMinimumSize = new Vector2(140, 60),
+                CustomMinimumSize = new Vector2(150, 70),
+                ThemeTypeVariation = "CardButton",
             };
             button.Pressed += () => PlayCard(capturedIndex);
             _handContainer.AddChild(button);

@@ -72,9 +72,10 @@ Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`) u
 - `CombatEngine` löst W20-Angriffswürfe/Checks inkl. Vorteil-Mechanik auf, kennt keine UI.
 - `scenes/Main.tscn` + `scenes/Main.cs` sind die (bewusst schlicht gehaltene, noch ungestylte) UI: Charakterbogen, Gegner-Panel, Log, Handkarten als Buttons.
 - **Noch nicht in der Godot-Editor-Umgebung getestet/geöffnet** – Claude Code hat in dieser Session keinen Zugriff auf Godot/.NET SDK, das Projekt wurde "blind" nach Godot-4-Konventionen angelegt. Erster Test durch den Nutzer lokal steht noch aus.
-- Visuelles Design ist Platzhalter (Default-Theme) – bewusst offen gelassen, damit der Nutzer hier selbst Hand anlegen kann.
+- Erster Grundtest durch den Nutzer erfolgreich: Kampf läuft in Godot 4.7 (Nutzer hat das Projekt beim Öffnen automatisch migriert) genauso wie im Prototyp.
+- Erster visueller Stylingpass umgesetzt: `theme/game_theme.tres` überträgt die Papier-&-Schreibtisch-Farbpalette des Prototyps (dunkler Hintergrund, Papier-Panels, Messing-Buttons, Karten als eigene "CardButton"-Theme-Variante, grün/rote HP-Balken je nach Füllstand). Bewusst ohne die Google-Fonts (Special Elite/Crimson Text) aus dem Prototyp – Systemfont vorerst, Fonts können später ergänzt werden. **Noch nicht in der echten Godot-Umgebung gegengeprüft.**
 
-**Nächster Schritt:** Nutzer öffnet das Projekt lokal in Godot, testet den Kampf, meldet Probleme zurück. Danach: weitere Klassen/Karten, Dungeon-Struktur.
+**Nächster Schritt:** Nutzer testet den Stylingpass in Godot und meldet Probleme/Feinschliff-Wünsche zurück. Danach: weitere Klassen/Karten, Dungeon-Struktur.
 
 ## Offene Punkte
 
