@@ -100,19 +100,19 @@ Nach Sieg **oder** Niederlage im Kampf (`Main.cs`, `EndCombat`) zeigt der bisher
 - **Links:** alle Karten im aktuellen Kampf-Deck ("Im Deck (N)").
 - **Rechts:** alle besessenen Karten, die *nicht* im Deck sind ("Nicht im Deck (N)").
 - Gleiche Kartentypen werden gruppiert mit Stückzahl gezeigt (z. B. "Hieb ×2" im Deck, "Hieb ×3" im Bestand), statt jede physische Karteninstanz einzeln aufzulisten.
-- **Drag & Drop:** Karten lassen sich zwischen den beiden Spalten verschieben (eine Karte pro Drag-Vorgang). Ziel wird beim Drop anhand der Mausposition über `DeckScreen._DropData` bestimmt (kein eigener Drop-Zonen-Node) – bewegt jeweils eine Karteninstanz zwischen `PlayerCardCollection.DeckCards`/`BenchCards`.
+- **Karten verschieben:** kein Drag & Drop (erste Umsetzung über Godots `_CanDropData`/`_DropData` hat im echten Editor nicht funktioniert – "kann hier nicht hin"-Cursor, vermutlich Ancestor-Bubbling-Annahme falsch). Stattdessen hat jede Karte oben rechts ein kleines Action-Badge: **"×"** im Deck (entfernt eine Karteninstanz aus dem Deck, legt sie in den Bestand), **"+"** im Bestand (nimmt eine Karteninstanz ins Deck auf). Klick verschiebt genau eine Karteninstanz und rendert beide Spalten neu.
 - **10-Karten-Regel:** Das Deck darf beim Bearbeiten größer oder kleiner als 10 werden, die Anzahl über der Deck-Spalte wird bei mehr als 10 Karten rot. "Zurück zum Hub" ist deaktiviert, solange das Deck **nicht genau 10 Karten** enthält; ein Hinweistext unter den Spalten erklärt warum.
 - "Zurück zum Hub" wechselt zurück zu `scenes/Hub.tscn` (nur klickbar, wenn genau 10 Karten im Deck sind).
 
 Datengrundlage ist weiterhin `PPRogueLite.Meta.PlayerCardCollection` (`scripts/meta/PlayerCardCollection.cs`) – eine statische Klasse, deren Felder den Prozess über Szenenwechsel hinweg überleben. Sie hält zwei Listen (`DeckCards`, `BenchCards`), befüllt über `CardCatalog.BuildWarriorStartingDeck()` (10 Karten) und `CardCatalog.BuildWarriorBenchCards()` (7 zusätzliche Karten: 2× Hieb, 2× Wuchtschlag, 1× Parade, 1× Finte, 1× Atem holen).
 
-**Neue wiederverwendbare Kartenansicht `scenes/CardView.tscn`/`CardView.cs`:** zeigt Typ/Name/Beschreibung/Anforderung direkt auf der Karte (keine Hover-Info mehr nötig) und optional eine Stückzahl. Wird sowohl im Deck-Screen (mit `Draggable = true`) als auch für die Handkarten im Kampf (`Main.cs`, mit `Clicked`-Event statt Drag) verwendet – ersetzt die bisherigen einfachen `Button`-Karten. Die alte Theme-Variante `CardButton` (Button-basiert) wurde entfernt und durch `CardPanel` (PanelContainer-basiert) + `CardTypeLabel`/`CardDescriptionLabel`/`CardRequirementLabel` ersetzt.
+**Neue wiederverwendbare Kartenansicht `scenes/CardView.tscn`/`CardView.cs`:** zeigt Typ/Name/Beschreibung/Anforderung direkt auf der Karte (keine Hover-Info mehr nötig) und optional eine Stückzahl. Aufbau: äußerer `Control` mit einem `PanelContainer` (Kartentext, `CardPanel`-Theme-Variante) und einem kleinen `Button` oben rechts (`ActionButton`, `CardActionButton`-Theme-Variante, per `ShowAction("×"/"+")` sichtbar geschaltet, Klick löst `ActionClicked` aus). Für die Handkarten im Kampf (`Main.cs`) bleibt das Action-Badge unsichtbar; dort löst ein Klick auf die ganze Karte `Clicked` aus (Karte spielen). Ersetzt die bisherigen einfachen `Button`-Karten. Die alte Theme-Variante `CardButton` (Button-basiert) wurde entfernt und durch `CardPanel`/`CardActionButton` (PanelContainer- bzw. Button-basiert) + `CardTypeLabel`/`CardDescriptionLabel`/`CardRequirementLabel` ersetzt.
 
 **Wichtig – noch nicht verbunden:** Der Kampf (`Main.cs`) baut sein Deck weiterhin unabhängig über `CardCatalog.BuildWarriorStartingDeck()` auf und liest **nicht** aus `PlayerCardCollection`. Karten, die im Deck-Screen verschoben werden, wirken sich also noch nicht auf den nächsten Kampf aus – diese Verbindung fehlt noch.
 
-**Noch nicht in der echten Godot-Umgebung gegengeprüft – das gilt besonders für das Drag & Drop** (`_CanDropData`/`_DropData` auf dem Root-Control, verlässt sich auf Godots Ancestor-Bubbling für Drop-Ziele, die selbst nichts überschreiben).
+**Noch nicht in der echten Godot-Umgebung gegengeprüft.**
 
-**Nächster Schritt:** Nutzer testet Drag & Drop, Stückzahl-Anzeige und die 10-Karten-Sperre in Godot. Danach mögliche Folgeschritte: `Main.cs` an `PlayerCardCollection` anbinden, damit Deck-Änderungen tatsächlich in den nächsten Kampf übernommen werden; Kartenshop; "Gruppe managen".
+**Nächster Schritt:** Nutzer testet die ×/+-Buttons, Stückzahl-Anzeige und die 10-Karten-Sperre in Godot. Danach mögliche Folgeschritte: `Main.cs` an `PlayerCardCollection` anbinden, damit Deck-Änderungen tatsächlich in den nächsten Kampf übernommen werden; Kartenshop; "Gruppe managen".
 
 ## Offene Punkte
 

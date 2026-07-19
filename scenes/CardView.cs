@@ -9,20 +9,18 @@ using PPRogueLite.Cards;
 /// direkt auf der Karte (keine Hover-Info nötig) und optional eine Stückzahl
 /// (z. B. "×3" bei mehreren gleichen Karten im Deck-Screen).
 ///
-/// Unterstützt wahlweise Klicks (Kampf: Karte spielen, über <see cref="Clicked"/>)
-/// oder Drag&amp;Drop (Deck-Screen: Karte zwischen Deck/Bestand verschieben,
-/// über <see cref="Draggable"/>/<see cref="_GetDragData"/>).
+/// Unterstützt wahlweise Klicks auf die ganze Karte (Kampf: Karte spielen,
+/// über <see cref="Clicked"/>) oder ein kleines Action-Badge oben rechts
+/// (Deck-Screen: Karte per "×"/"+" zwischen Deck und Bestand verschieben,
+/// über <see cref="ShowAction"/>/<see cref="ActionClicked"/>).
 /// </summary>
-public partial class CardView : PanelContainer
+public partial class CardView : Control
 {
     private static readonly Color DisabledModulate = new(1f, 1f, 1f, 0.5f);
 
     public event Action? Clicked;
 
-    public bool Draggable { get; set; }
-
-    /// <summary>Frei wählbare Herkunftskennung fürs Drag&amp;Drop, z. B. "deck"/"bench".</summary>
-    public string Source { get; set; } = string.Empty;
+    public event Action? ActionClicked;
 
     public CardDefinition? Card { get; private set; }
 
@@ -30,6 +28,7 @@ public partial class CardView : PanelContainer
     private Label _nameLabel = null!;
     private Label _descriptionLabel = null!;
     private Label _requirementLabel = null!;
+    private Button _actionButton = null!;
 
     private bool _disabled;
 
@@ -45,10 +44,12 @@ public partial class CardView : PanelContainer
 
     public override void _Ready()
     {
-        _typeLabel = GetNode<Label>("CardVBox/TypeLabel");
-        _nameLabel = GetNode<Label>("CardVBox/NameLabel");
-        _descriptionLabel = GetNode<Label>("CardVBox/DescriptionLabel");
-        _requirementLabel = GetNode<Label>("CardVBox/RequirementLabel");
+        _typeLabel = GetNode<Label>("Panel/CardVBox/TypeLabel");
+        _nameLabel = GetNode<Label>("Panel/CardVBox/NameLabel");
+        _descriptionLabel = GetNode<Label>("Panel/CardVBox/DescriptionLabel");
+        _requirementLabel = GetNode<Label>("Panel/CardVBox/RequirementLabel");
+        _actionButton = GetNode<Button>("ActionButton");
+        _actionButton.Pressed += () => ActionClicked?.Invoke();
     }
 
     public void Populate(CardDefinition card, int count = 1)
@@ -58,6 +59,13 @@ public partial class CardView : PanelContainer
         _nameLabel.Text = count > 1 ? $"{card.DisplayName}  ×{count}" : card.DisplayName;
         _descriptionLabel.Text = card.Description;
         _requirementLabel.Text = card.RequirementText;
+    }
+
+    /// <summary>Zeigt das kleine Action-Badge oben rechts mit dem gegebenen Symbol (z. B. "×" oder "+").</summary>
+    public void ShowAction(string symbol)
+    {
+        _actionButton.Visible = true;
+        _actionButton.Text = symbol;
     }
 
     public override void _GuiInput(InputEvent @event)
@@ -71,22 +79,5 @@ public partial class CardView : PanelContainer
         {
             Clicked?.Invoke();
         }
-    }
-
-    public override Variant _GetDragData(Vector2 atPosition)
-    {
-        if (!Draggable || Card is null)
-        {
-            return default;
-        }
-
-        var preview = new Label { Text = Card.DisplayName };
-        SetDragPreview(preview);
-
-        return new Godot.Collections.Dictionary
-        {
-            ["cardId"] = Card.Id,
-            ["source"] = Source,
-        };
     }
 }
