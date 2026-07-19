@@ -85,15 +85,29 @@ Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`) u
 Das Spiel startet jetzt in `scenes/Hub.tscn` (Startszene laut `project.godot`) statt direkt im Kampf – der Hub ist die "Taverne" aus der Meta-Ebene-Planung. Vier Buttons in einem zentrierten Papier-Menüpanel:
 
 - **"Dungeon betreten"** – **funktional**: wechselt per `GetTree().ChangeSceneToFile()` zu `scenes/Main.tscn` und startet damit den Testkampf.
-- **"Karten managen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: eigener Screen mit dem kompletten Deck sowie allen Karten, die aktuell nicht im Deck sind; von dort aus Wechsel in einen Kartenshop (siehe Kartenpacks/Meta-Progression weiter oben).
+- **"Karten managen"** – **funktional**: wechselt zu `scenes/DeckScreen.tscn` (siehe eigener Abschnitt unten).
 - **"Gruppe managen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: alle besessenen Charaktere als Charakterkarten; Anklicken einer Karte öffnet das Charakterbogen-Sheet (Bezug zur Roster-/Gruppen-Planung in der Meta-Ebene oben).
 - **"Mit Loot entkommen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: Weg, einen Run kontrolliert/sicher zu beenden (Loot behalten statt Risiko eines Wipes).
 
-Nach Sieg **oder** Niederlage im Kampf (`Main.cs`, `EndCombat`) zeigt der bisherige Neustart-Button jetzt **"Zurück zum Hub"** und wechselt per Szenenwechsel zurück zu `scenes/Hub.tscn`, statt den Kampf direkt neu zu starten. Jeder erneute Einstieg über "Dungeon betreten" baut den Kampf komplett neu auf (frischer Charakter/Deck/Gegner in `Main._Ready()`), es gibt aktuell keinen persistenten Zustand zwischen Hub und Dungeon (Deck-Änderungen, Loot etc. – das kommt erst mit der Funktionalität der Platzhalter-Buttons).
+Nach Sieg **oder** Niederlage im Kampf (`Main.cs`, `EndCombat`) zeigt der bisherige Neustart-Button jetzt **"Zurück zum Hub"** und wechselt per Szenenwechsel zurück zu `scenes/Hub.tscn`, statt den Kampf direkt neu zu starten. Jeder erneute Einstieg über "Dungeon betreten" baut den Kampf komplett neu auf (frischer Charakter/Deck/Gegner in `Main._Ready()`).
 
 **Noch nicht in der echten Godot-Umgebung gegengeprüft.**
 
-**Nächster Schritt:** Nutzer testet den Hub/Szenenwechsel in Godot. Danach: Funktionalität für einen der drei Platzhalter-Buttons (voraussichtlich Karten managen) umsetzen.
+## Deck-Screen (bereits aufgesetzt)
+
+`scenes/DeckScreen.tscn` (über "Karten managen" im Hub erreichbar) zeigt zwei Spalten in Papier-Panels:
+- **Links:** alle Karten im aktuellen Kampf-Deck ("Im Deck (N)").
+- **Rechts:** alle besessenen Karten, die *nicht* im Deck sind ("Nicht im Deck (N)").
+- Jede Karte wird als deaktivierter `CardButton` (gleiche Theme-Variante wie die Handkarten im Kampf) mit Name + Tooltip (Typ/Beschreibung/Anforderung) dargestellt – **reine Anzeige, noch nicht klickbar/verschiebbar**.
+- "Zurück zum Hub" wechselt zurück zu `scenes/Hub.tscn`.
+
+Datengrundlage ist die neue `PPRogueLite.Meta.PlayerCardCollection` (`scripts/meta/PlayerCardCollection.cs`) – eine statische Klasse, deren Felder den Prozess über Szenenwechsel hinweg überleben. Sie hält zwei Listen (`DeckCards`, `BenchCards`), aktuell befüllt über `CardCatalog.BuildWarriorStartingDeck()` (10 Karten, identisch zum Kampf-Deck) und das neue `CardCatalog.BuildWarriorBenchCards()` (7 zusätzliche Karten: 2× Hieb, 2× Wuchtschlag, 1× Parade, 1× Finte, 1× Atem holen).
+
+**Wichtig – noch nicht verbunden:** Der Kampf (`Main.cs`) baut sein Deck weiterhin unabhängig über `CardCatalog.BuildWarriorStartingDeck()` auf und liest **nicht** aus `PlayerCardCollection`. Wer im Deck-Screen später Karten verschiebt, hat also noch keinen Effekt auf den nächsten Kampf – diese Verbindung fehlt noch.
+
+**Noch nicht in der echten Godot-Umgebung gegengeprüft.**
+
+**Nächster Schritt:** Nutzer testet Hub, Deck-Screen und die Szenenwechsel in Godot. Danach mögliche Folgeschritte: Karten im Deck-Screen klickbar machen, um sie zwischen Deck und Bestand zu verschieben; `Main.cs` an `PlayerCardCollection` anbinden, damit Deck-Änderungen tatsächlich in den nächsten Kampf übernommen werden; Kartenshop; "Gruppe managen".
 
 ## Offene Punkte
 

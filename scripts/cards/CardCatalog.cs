@@ -28,4 +28,30 @@ public static class CardCatalog
 
         return deck;
     }
+
+    /// <summary>
+    /// Karten, die der Krieger zusätzlich zum Startdeck besitzt, aber
+    /// aktuell nicht im Kampf-Deck hat - für die "nicht im Deck"-Spalte im
+    /// Deck-Screen.
+    /// </summary>
+    public static List<CardDefinition> BuildWarriorBenchCards()
+    {
+        var bench = new List<CardDefinition>();
+
+        for (int i = 0; i < 2; i++)
+        {
+            bench.Add(new HiebCard());
+        }
+
+        for (int i = 0; i < 2; i++)
+        {
+            bench.Add(new WuchtschlagCard());
+        }
+
+        bench.Add(new ParadeCard());
+        bench.Add(new FinteCard());
+        bench.Add(new AtemHolenCard());
+
+        return bench;
+    }
 }

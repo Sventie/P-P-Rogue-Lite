@@ -4,8 +4,9 @@ using Godot;
 
 /// <summary>
 /// Menü-Hub zwischen den Dungeon-Runs. "Dungeon betreten" startet den
-/// Testkampf (scenes/Main.tscn). Die übrigen Buttons sind reine UI-Struktur
-/// ohne Funktion - siehe CLAUDE.md für die geplante Funktionalität.
+/// Testkampf (scenes/Main.tscn), "Karten managen" öffnet den Deck-Screen.
+/// Die übrigen Buttons sind reine UI-Struktur ohne Funktion - siehe
+/// CLAUDE.md für die geplante Funktionalität.
 /// </summary>
 public partial class Hub : Control
 {
@@ -14,10 +15,19 @@ public partial class Hub : Control
         var enterDungeonButton = GetNode<Button>(
             "MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox/EnterDungeonButton");
         enterDungeonButton.Pressed += OnEnterDungeonPressed;
+
+        var manageCardsButton = GetNode<Button>(
+            "MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox/ManageCardsButton");
+        manageCardsButton.Pressed += OnManageCardsPressed;
     }
 
     private void OnEnterDungeonPressed()
     {
         GetTree().ChangeSceneToFile("res://scenes/Main.tscn");
+    }
+
+    private void OnManageCardsPressed()
+    {
+        GetTree().ChangeSceneToFile("res://scenes/DeckScreen.tscn");
     }
 }
