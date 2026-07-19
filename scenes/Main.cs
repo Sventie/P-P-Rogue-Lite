@@ -14,9 +14,12 @@ using PPRogueLite.Combat;
 ///
 /// Jede Log-Zeile aus dem CombatEngine landet zunächst in einer Warteschlange
 /// und wird nacheinander groß im PopupPanel gezeigt (Würfe zusätzlich mit
-/// Erfolg/Misserfolg-Stempel), bevor sie dauerhaft ins Log wandert. Werte
-/// (HP-Balken etc.) werden erst gerendert, nachdem die zugehörigen Popups
-/// durchgelaufen sind - so wirkt sich eine Aktion nicht "sofort" sichtbar aus.
+/// Erfolg/Misserfolg-Stempel); der Name der laufenden Aktion (Karte oder
+/// Gegner) steht währenddessen fest als Titel über dem Popup. Jede Zeile
+/// wird erst per "Weiter"-Button bestätigt, bevor sie dauerhaft ins Log
+/// wandert. Werte (HP-Balken etc.) werden erst gerendert, nachdem die
+/// zugehörigen Popups durchgelaufen sind - so wirkt sich eine Aktion nicht
+/// "sofort" sichtbar aus.
 /// </summary>
 public partial class Main : Control
 {
@@ -52,8 +55,10 @@ public partial class Main : Control
     private HBoxContainer _handContainer = null!;
     private Button _restartButton = null!;
     private PanelContainer _popupPanel = null!;
+    private Label _popupActionLabel = null!;
     private RichTextLabel _popupMessageLabel = null!;
     private Label _popupStampLabel = null!;
+    private Button _popupContinueButton = null!;
 
     private static readonly (Ability Ability, string Label)[] StatOrder =
     {
@@ -85,8 +90,10 @@ public partial class Main : Control
         _restartButton = GetNode<Button>("MarginContainer/VBoxContainer/RestartButton");
 
         _popupPanel = GetNode<PanelContainer>("PopupLayer/PopupPanel");
+        _popupActionLabel = GetNode<Label>("PopupLayer/PopupPanel/PopupVBox/PopupActionLabel");
         _popupMessageLabel = GetNode<RichTextLabel>("PopupLayer/PopupPanel/PopupVBox/PopupMessageLabel");
         _popupStampLabel = GetNode<Label>("PopupLayer/PopupPanel/PopupVBox/PopupStampLabel");
+        _popupContinueButton = GetNode<Button>("PopupLayer/PopupPanel/PopupVBox/PopupContinueButton");
 
         _restartButton.Pressed += StartNewCombat;
 
@@ -144,6 +151,7 @@ public partial class Main : Control
         RenderVitals();
         RenderHand();
 
+        _popupActionLabel.Text = _enemy.Name;
         EnqueueLog("Ein Goblin springt aus dem Schatten hervor!", LogTag.System, null);
         await DrawHandAsync();
     }
@@ -167,7 +175,7 @@ public partial class Main : Control
         _turnLocked = true;
         RenderHand();
 
-        EnqueueLog($"— Du spielst {card.DisplayName} —", LogTag.System, null);
+        _popupActionLabel.Text = card.DisplayName;
         card.Play(_engine);
 
         _deck.ResolveHand(_hand, index);
@@ -191,6 +199,7 @@ public partial class Main : Control
 
     private async Task EnemyTurnAsync()
     {
+        _popupActionLabel.Text = _enemy.Name;
         _engine.EnemyAttack();
         await RevealPendingLogAsync();
         RenderVitals();
@@ -215,6 +224,7 @@ public partial class Main : Control
 
         string message = won ? "Der Goblin fällt. Der Weg ist frei." : "Deine Kräfte verlassen dich...";
         _rollReadoutLabel.Text = message;
+        _popupActionLabel.Text = won ? "Sieg" : "Niederlage";
         EnqueueLog(message, won ? LogTag.Good : LogTag.Bad, null);
         _ = RevealPendingLogAsync();
     }
@@ -226,15 +236,25 @@ public partial class Main : Control
 
     private async Task RevealPendingLogAsync()
     {
+        if (_pendingLog.Count == 0)
+        {
+            return;
+        }
+
+        _popupPanel.Visible = true;
+
         while (_pendingLog.Count > 0)
         {
             var entry = _pendingLog.Dequeue();
-            await ShowPopupAsync(entry);
+            ApplyPopupContent(entry);
+            await WaitForContinueAsync();
             CommitLogEntry(entry);
         }
+
+        _popupPanel.Visible = false;
     }
 
-    private async Task ShowPopupAsync(PendingLogEntry entry)
+    private void ApplyPopupContent(PendingLogEntry entry)
     {
         _popupMessageLabel.Text = $"[center]{FormatLogBbcode(entry.Message, entry.Tag)}[/center]";
 
@@ -248,10 +268,11 @@ public partial class Main : Control
         {
             _popupStampLabel.Visible = false;
         }
+    }
 
-        _popupPanel.Visible = true;
-        await Delay(entry.Stamp.HasValue ? 1.1 : 0.8);
-        _popupPanel.Visible = false;
+    private async Task WaitForContinueAsync()
+    {
+        await ToSignal(_popupContinueButton, Button.SignalName.Pressed);
     }
 
     private void CommitLogEntry(PendingLogEntry entry)

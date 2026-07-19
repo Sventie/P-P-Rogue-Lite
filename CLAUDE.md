@@ -75,9 +75,10 @@ Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`) u
 - Erster Grundtest durch den Nutzer erfolgreich: Kampf läuft in Godot 4.7 (Nutzer hat das Projekt beim Öffnen automatisch migriert) genauso wie im Prototyp.
 - Erster visueller Stylingpass umgesetzt: `theme/game_theme.tres` überträgt die Papier-&-Schreibtisch-Farbpalette des Prototyps (dunkler Hintergrund, Papier-Panels, Messing-Buttons, Karten als eigene "CardButton"-Theme-Variante, grün/rote HP-Balken je nach Füllstand). Bewusst ohne die Google-Fonts (Special Elite/Crimson Text) aus dem Prototyp – Systemfont vorerst, Fonts können später ergänzt werden.
 - Stylingpass vom Nutzer erfolgreich getestet und für gut befunden.
-- Ergebnis-Popup ergänzt (Reveal-Warteschlange): Jede Log-Zeile aus dem Kampf (Würfe, Schaden, Heilung, Systemtexte) erscheint zuerst groß zentriert im `PopupPanel` – Würfe zusätzlich mit Erfolg/Misserfolg-Stempel (TREFFER/VERFEHLT bzw. ERFOLG/FEHLSCHLAG) – und wandert erst danach dauerhaft ins Log. HP-Balken/Werte werden ebenfalls erst nach Abschluss der zugehörigen Popups aktualisiert, statt sofort. Ablauf in `Main.cs` dafür auf `async`/`await` umgestellt (`PlayCard`, `EnemyTurnAsync`, `DrawHandAsync`). **Noch nicht in der echten Godot-Umgebung gegengeprüft.**
+- Ergebnis-Popup ergänzt (Reveal-Warteschlange): Jede Log-Zeile aus dem Kampf (Würfe, Schaden, Heilung, Systemtexte) erscheint zuerst groß zentriert im `PopupPanel` – Würfe zusätzlich mit Erfolg/Misserfolg-Stempel (TREFFER/VERFEHLT bzw. ERFOLG/FEHLSCHLAG) – und wandert erst danach dauerhaft ins Log. HP-Balken/Werte werden ebenfalls erst nach Abschluss der zugehörigen Popups aktualisiert, statt sofort. Ablauf in `Main.cs` dafür auf `async`/`await` umgestellt (`PlayCard`, `EnemyTurnAsync`, `DrawHandAsync`).
+- Popup-Fortschritt läuft über einen "Weiter"-Button statt über einen Timer (`PopupContinueButton`, per `ToSignal` awaited). Der Name der laufenden Aktion (gespielte Karte bzw. Gegner) steht als fester Titel (`PopupActionLabel`) über dem Popup-Inhalt, solange die zugehörigen Zeilen durchgeklickt werden. Die frühere separate "— Du spielst X —"-Log-Zeile wurde entfernt (Karte steht ohnehin im Titel bzw. schon in den Wurf-Zeilen). **Noch nicht in der echten Godot-Umgebung gegengeprüft.**
 
-**Nächster Schritt:** Nutzer testet das Popup-Timing/-Gefühl in Godot und meldet Feinschliff-Wünsche (z. B. Popup-Dauer, Ein-/Ausblend-Animation) zurück.
+**Nächster Schritt:** Nutzer testet das Popup/Weiter-Gefühl in Godot und meldet Feinschliff-Wünsche zurück.
 
 ## Offene Punkte
 
