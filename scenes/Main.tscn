@@ -1,0 +1,113 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/Main.cs" id="1"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TopRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SheetPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SheetVBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/TopRow/SheetPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer/TopRow/SheetPanel/SheetVBox"]
+layout_mode = 2
+text = "Rurik Steinfaust"
+
+[node name="ClassLabel" type="Label" parent="MarginContainer/VBoxContainer/TopRow/SheetPanel/SheetVBox"]
+layout_mode = 2
+text = "Krieger — Stufe 1"
+
+[node name="StatGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/TopRow/SheetPanel/SheetVBox"]
+layout_mode = 2
+columns = 3
+
+[node name="AcLabel" type="Label" parent="MarginContainer/VBoxContainer/TopRow/SheetPanel/SheetVBox"]
+layout_mode = 2
+text = "Rüstungsklasse: 15"
+
+[node name="HpLabel" type="Label" parent="MarginContainer/VBoxContainer/TopRow/SheetPanel/SheetVBox"]
+layout_mode = 2
+text = "Trefferpunkte: 24 / 24"
+
+[node name="PlayerHpBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/TopRow/SheetPanel/SheetVBox"]
+layout_mode = 2
+max_value = 24.0
+value = 24.0
+show_percentage = false
+
+[node name="RoomPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RoomVBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/TopRow/RoomPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="EnemyNameLabel" type="Label" parent="MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox"]
+layout_mode = 2
+text = "Höhlengoblin"
+
+[node name="EnemyHpLabel" type="Label" parent="MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox"]
+layout_mode = 2
+text = "Trefferpunkte: 12 / 12"
+
+[node name="EnemyHpBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox"]
+layout_mode = 2
+max_value = 12.0
+value = 12.0
+show_percentage = false
+
+[node name="RollReadoutLabel" type="Label" parent="MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox"]
+layout_mode = 2
+text = "Wähle eine Karte, um den Kampf zu beginnen."
+autowrap_mode = 3
+
+[node name="LogLabel" type="RichTextLabel" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 160)
+bbcode_enabled = true
+scroll_following = true
+
+[node name="HandLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "HAND (5) — Nachziehstapel: – · Ablage: –"
+
+[node name="HandContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RestartButton" type="Button" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+visible = false
+text = "Neuer Versuch"

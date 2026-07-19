@@ -46,15 +46,15 @@ Ein rundenbasiertes Rogue-lite mit echtem Pen & Paper-Gefühl:
   - Gründe: kein aufwändiger Installationsprozess (portable, keine Account-Pflicht wie bei Unity Hub) – wichtig für schnellen Einstieg; kostenlos, Open Source, kein Lizenzthema bei Steam-Release; gut für reines 2D geeignet; Ein-Script-pro-Node-Prinzip erzwingt tendenziell übersichtlichere Struktur als Unitys freies Komponenten-Stacking.
   - **Ausstiegsklausel:** Falls sich im Laufe der Entwicklung herausstellt, dass Godot nicht passt, bleibt es beim Godot-Prototyp – das eigentliche Spiel wird dann in Unity **neu aufgesetzt**, nicht aus dem Godot-Stand heraus migriert. Der Godot-Teil ist in diesem Fall Lernprojekt/Wegwerf-Prototyp, kein Unterbau für Unity.
 - **Arbeitsweise:** Claude Code arbeitet ausschließlich über Zugriff auf das **Git-Repository** (GitHub), **nicht** auf lokale Ordner/Dateien auf dem Rechner des Nutzers. Alle Änderungen (Code, Szenen, Assets, Doku) erfolgen als Commits/Pushes im Repo. Der Nutzer zieht sich Änderungen selbst lokal (`git pull`), um das Godot-Projekt zu öffnen, zu testen und ggf. eigene Anpassungen vorzunehmen und zurückzupushen.
-- Vorgeschlagene Ordnerstruktur (feature-basiert, engine-agnostisch):
+- Ordnerstruktur (umgesetzt):
   ```
   /scripts
-    /character   (Stats, Charakterbogen-Logik)
-    /combat      (Rundenkampf, Würfel-Resolution)
-    /cards       (Kartendeck, Handkarten-Logik)
-    /dungeon     (Prozedurale Generierung)
-    /meta        (Zwischen-Run-Progression)
-  /scenes        (jeweils passende Szenen-Dateien)
+    /character   (Stats, Charakterbogen-Logik: AbilityScores, PlayerCharacter, Enemy)
+    /combat      (Rundenkampf, Würfel-Resolution: Dice, CombatEngine, LogTag, AttackResult)
+    /cards       (Kartendeck, Handkarten-Logik: CardDefinition + Karten, CardCatalog, Deck)
+    /dungeon     (noch leer – nächste Phase)
+    /meta        (noch leer – spätere Phase)
+  /scenes        (Main.tscn + zugehöriges Main.cs als UI-/Ablauf-Glue, Godot-Konvention: Script liegt bei seiner Szene)
   ```
 
 ## Browser-Prototyp (bereits erstellt)
@@ -65,7 +65,16 @@ Ein spielbarer HTML/JS-Prototyp existiert bereits (Datei: `dice-and-cards-protot
 - Deck aus 10 Karten (Hieb x4, Wuchtschlag x2, Parade x2, Finte x1, Atem holen x1 [Exhaust]).
 - Reines Vanilla HTML/CSS/JS, keine Frameworks – Logik lässt sich konzeptionell auf GDScript/C# übertragen.
 
-**Nächster Schritt:** Godot-Projekt im Repo aufsetzen und die Logik aus dem Prototyp (Stats, Karten, Würfel-Resolution) nach C#/Godot übertragen.
+## Godot-Projekt (bereits aufgesetzt)
+
+Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`) und enthält die 1:1 aus dem Browser-Prototyp übertragene Kampflogik in C#:
+- Gleicher Testkampf wie im Prototyp: Rurik Steinfaust (Krieger) gegen Höhlengoblin, gleiche Stats/AC/HP, gleiches 10-Karten-Deck (Hieb, Wuchtschlag, Parade, Finte, Atem holen).
+- `CombatEngine` löst W20-Angriffswürfe/Checks inkl. Vorteil-Mechanik auf, kennt keine UI.
+- `scenes/Main.tscn` + `scenes/Main.cs` sind die (bewusst schlicht gehaltene, noch ungestylte) UI: Charakterbogen, Gegner-Panel, Log, Handkarten als Buttons.
+- **Noch nicht in der Godot-Editor-Umgebung getestet/geöffnet** – Claude Code hat in dieser Session keinen Zugriff auf Godot/.NET SDK, das Projekt wurde "blind" nach Godot-4-Konventionen angelegt. Erster Test durch den Nutzer lokal steht noch aus.
+- Visuelles Design ist Platzhalter (Default-Theme) – bewusst offen gelassen, damit der Nutzer hier selbst Hand anlegen kann.
+
+**Nächster Schritt:** Nutzer öffnet das Projekt lokal in Godot, testet den Kampf, meldet Probleme zurück. Danach: weitere Klassen/Karten, Dungeon-Struktur.
 
 ## Offene Punkte
 
