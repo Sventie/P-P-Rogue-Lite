@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Würfel & Karten – Kampfprototyp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Crimson+Text:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --desk: #1c1712;
+    --desk-dark: #120e0a;
+    --paper: #d8cba0;
+    --paper-dark: #c9bb8c;
+    --ink: #241c15;
+    --ink-faint: #5c5240;
+    --rule-red: #9c3b3b;
+    --brass: #b08d3d;
+    --brass-bright: #d9b25c;
+    --slate: #445059;
+    --hp-good: #5a7a4f;
+    --hp-bad: #9c3b3b;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background:
+      radial-gradient(ellipse at 50% -10%, #2a2119 0%, var(--desk) 45%, var(--desk-dark) 100%);
+    font-family:'Inter', sans-serif;
+    color:var(--paper);
+    min-height:100vh;
+    padding:24px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:18px;
+  }
+  h1{
+    font-family:'Special Elite', monospace;
+    font-size:1.4rem;
+    letter-spacing:0.06em;
+    color:var(--brass-bright);
+    margin:4px 0 0 0;
+    text-transform:uppercase;
+  }
+  .subtitle{
+    font-family:'Crimson Text', serif;
+    font-style:italic;
+    color:#a89a78;
+    margin:-10px 0 0 0;
+    font-size:0.95rem;
+  }
+  .table{
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    gap:20px;
+    width:100%;
+    max-width:980px;
+  }
+  @media (max-width: 760px){
+    .table{ grid-template-columns: 1fr; }
+  }
+  .panel{
+    background: var(--paper);
+    background-image: linear-gradient(var(--paper), var(--paper-dark));
+    color: var(--ink);
+    border-radius:3px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.15);
+    position:relative;
+    overflow:hidden;
+  }
+  .panel::before{
+    content:"";
+    position:absolute;
+    left:38px; top:0; bottom:0;
+    width:2px;
+    background: var(--rule-red);
+    opacity:0.55;
+  }
+  .sheet{
+    padding:18px 18px 18px 52px;
+  }
+  .sheet-header{
+    font-family:'Special Elite', monospace;
+    border-bottom:1px solid var(--ink-faint);
+    padding-bottom:8px;
+    margin-bottom:10px;
+  }
+  .sheet-header .name{ font-size:1.15rem; }
+  .sheet-header .class{ font-size:0.8rem; color:var(--ink-faint); }
+  .stat-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:8px;
+    margin:12px 0;
+  }
+  .stat{
+    text-align:center;
+    background: rgba(0,0,0,0.05);
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:2px;
+    padding:6px 2px;
+  }
+  .stat .label{
+    font-family:'Special Elite', monospace;
+    font-size:0.62rem;
+    letter-spacing:0.08em;
+    color:var(--ink-faint);
+  }
+  .stat .score{ font-family:'Special Elite', monospace; font-size:1rem; }
+  .stat .mod{ font-family:'Crimson Text', serif; font-size:0.8rem; color:var(--rule-red); }
+  .vitals{ display:flex; gap:10px; margin-top:14px; }
+  .vital-box{
+    flex:1;
+    text-align:center;
+    font-family:'Special Elite', monospace;
+    font-size:0.7rem;
+    color: var(--ink-faint);
+  }
+  .vital-box .value{ font-size:1.05rem; color:var(--ink); }
+  .hp-track{
+    height:14px;
+    border:1px solid var(--ink);
+    border-radius:2px;
+    margin-top:6px;
+    overflow:hidden;
+    background:#00000015;
+  }
+  .hp-fill{ height:100%; background: var(--hp-good); transition: width 0.4s ease; }
+  .hp-fill.low{ background: var(--hp-bad); }
+
+  .room{
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .room-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:1px solid var(--ink-faint);
+    padding-bottom:8px;
+  }
+  .room-header .name{ font-family:'Special Elite', monospace; font-size:1.1rem; }
+  .enemy-hp{ width:200px; }
+  .enemy-hp .label{ font-family:'Special Elite', monospace; font-size:0.65rem; color:var(--ink-faint); }
+
+  .die-stage{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+    min-height:90px;
+  }
+  .die{
+    width:64px; height:64px;
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .die svg{ position:absolute; inset:0; width:100%; height:100%; }
+  .die .num{
+    font-family:'Special Elite', monospace;
+    font-size:1.4rem;
+    color: var(--ink);
+    z-index:1;
+  }
+  .die.rolling svg{ animation: tumble 0.5s ease-out; }
+  @keyframes tumble{
+    0%{ transform: rotate(0deg) scale(0.7); opacity:0.4; }
+    60%{ transform: rotate(300deg) scale(1.08); }
+    100%{ transform: rotate(360deg) scale(1); opacity:1; }
+  }
+  .roll-readout{
+    font-family:'Crimson Text', serif;
+    font-size:0.95rem;
+    color: var(--ink-faint);
+    min-height:1.4em;
+  }
+  .stamp{
+    font-family:'Special Elite', monospace;
+    font-size:1.1rem;
+    letter-spacing:0.1em;
+    padding:2px 10px;
+    border:3px solid;
+    border-radius:4px;
+    transform: rotate(-6deg);
+    opacity:0;
+  }
+  .stamp.show{ animation: stampin 0.35s ease-out forwards; }
+  @keyframes stampin{
+    0%{ opacity:0; transform: rotate(-6deg) scale(1.8); }
+    100%{ opacity:1; transform: rotate(-6deg) scale(1); }
+  }
+  .stamp.hit{ color:var(--hp-good); border-color:var(--hp-good); }
+  .stamp.miss{ color:var(--rule-red); border-color:var(--rule-red); }
+
+  .log{
+    font-family:'Crimson Text', serif;
+    font-size:0.9rem;
+    color: var(--ink);
+    background: rgba(0,0,0,0.04);
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:2px;
+    padding:10px 12px;
+    height:150px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column-reverse;
+  }
+  .log p{ margin:2px 0; }
+  .log .sys{ color:var(--ink-faint); font-style:italic; }
+  .log .good{ color:#3d5a34; }
+  .log .bad{ color:var(--rule-red); }
+
+  .hand-area{
+    width:100%;
+    max-width:980px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+  .hand-label{
+    font-family:'Special Elite', monospace;
+    font-size:0.75rem;
+    color:#a89a78;
+    letter-spacing:0.08em;
+  }
+  .hand{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+  .card{
+    width:150px;
+    min-height:190px;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius:8px;
+    border:1px solid rgba(0,0,0,0.3);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    cursor:pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    font-family:'Crimson Text', serif;
+  }
+  .card:hover, .card:focus-visible{
+    transform: translateY(-8px);
+    box-shadow: 0 12px 22px rgba(0,0,0,0.5);
+    outline: 2px solid var(--brass-bright);
+    outline-offset:2px;
+  }
+  .card:disabled, .card.disabled{
+    opacity:0.35;
+    cursor:not-allowed;
+    transform:none;
+  }
+  .card .ctype{
+    font-family:'Special Elite', monospace;
+    font-size:0.58rem;
+    letter-spacing:0.08em;
+    color: var(--rule-red);
+    text-transform:uppercase;
+  }
+  .card .cname{
+    font-family:'Special Elite', monospace;
+    font-size:0.95rem;
+    margin:4px 0;
+  }
+  .card .cdesc{ font-size:0.82rem; color:var(--ink-faint); flex-grow:1; }
+  .card .creq{ font-size:0.72rem; color:var(--slate); border-top:1px dashed rgba(0,0,0,0.2); padding-top:4px; margin-top:4px; }
+
+  .deck-info{
+    font-family:'Inter', sans-serif;
+    font-size:0.75rem;
+    color:#8d8266;
+    display:flex;
+    gap:16px;
+  }
+
+  .controls{ margin-top:6px; }
+  button.action{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:0.85rem;
+    background: var(--brass);
+    color: var(--desk-dark);
+    border:none;
+    padding:10px 20px;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  button.action:hover{ background: var(--brass-bright); }
+  button.action:focus-visible{ outline:2px solid var(--paper); outline-offset:2px; }
+
+  .overlay{
+    position:fixed; inset:0;
+    background: rgba(10,8,6,0.85);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    gap:16px;
+    z-index:10;
+  }
+  .overlay.hidden{ display:none; }
+  .overlay .big-stamp{
+    font-family:'Special Elite', monospace;
+    font-size:2.6rem;
+    letter-spacing:0.1em;
+    padding:14px 36px;
+    border:5px solid;
+    border-radius:6px;
+    transform:rotate(-4deg);
+  }
+  .overlay .big-stamp.win{ color:#7fae66; border-color:#7fae66; }
+  .overlay .big-stamp.lose{ color:#c85a5a; border-color:#c85a5a; }
+</style>
+</head>
+<body>
+
+  <h1>Probe der Klinge</h1>
+  <p class="subtitle">Testkampf — Kartenhand, Würfelwurf, Charakterwerte</p>
+
+  <div class="table">
+    <div class="panel sheet">
+      <div class="sheet-header">
+        <div class="name">Rurik Steinfaust</div>
+        <div class="class">Krieger — Stufe 1</div>
+      </div>
+
+      <div class="stat-grid" id="statGrid"></div>
+
+      <div class="vitals">
+        <div class="vital-box">
+          <div class="label">RÜSTUNGSKLASSE</div>
+          <div class="value" id="acValue">15</div>
+        </div>
+        <div class="vital-box" style="flex:2">
+          <div class="label">TREFFERPUNKTE</div>
+          <div class="value"><span id="hpValue">24</span> / 24</div>
+          <div class="hp-track"><div class="hp-fill" id="playerHpFill" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel room">
+      <div class="room-header">
+        <div>
+          <div class="name" id="enemyName">Höhlengoblin</div>
+        </div>
+        <div class="enemy-hp">
+          <div class="label">TREFFERPUNKTE <span id="enemyHpText">12/12</span></div>
+          <div class="hp-track"><div class="hp-fill" id="enemyHpFill" style="width:100%"></div></div>
+        </div>
+      </div>
+
+      <div class="die-stage">
+        <div class="die" id="die1"><svg viewBox="0 0 100 100"><polygon points="50,4 95,27 95,73 50,96 5,73 5,27" fill="#e8dcc0" stroke="#241c15" stroke-width="4"/></svg><span class="num" id="dieNum1">–</span></div>
+        <span class="stamp" id="stampEl">TREFFER</span>
+      </div>
+      <div class="roll-readout" id="rollReadout">Wähle eine Karte, um den Kampf zu beginnen.</div>
+
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <div class="hand-area">
+    <div class="hand-label">HAND (<span id="handCount">5</span>) — Nachziehstapel: <span id="deckCount">–</span> · Ablage: <span id="discardCount">–</span></div>
+    <div class="hand" id="hand"></div>
+    <div class="controls">
+      <button class="action" id="restartBtn" style="display:none;">Neuer Versuch</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="overlay">
+    <div class="big-stamp" id="bigStamp">SIEG</div>
+    <button class="action" id="overlayRestart">Noch einmal versuchen</button>
+  </div>
+
+<script>
+(function(){
+
+  const PLAYER = {
+    stats: { STR:16, DEX:12, CON:14, INT:10, WIS:10, CHA:8 },
+    maxHp: 24, hp: 24,
+    baseAc: 15, tempAc: 0,
+    advantageNext: false,
+    secondWindUsed: false
+  };
+  function mod(score){ return Math.floor((score-10)/2); }
+  function fmtMod(m){ return (m>=0?'+':'') + m; }
+
+  const ENEMY = {
+    name: 'Höhlengoblin',
+    maxHp: 12, hp: 12,
+    ac: 13,
+    atkBonus: 4,
+    dmgDie: 6, dmgBonus: 2
+  };
+
+  const CARD_DEFS = {
+    hieb: {
+      id:'hieb', type:'Angriff', name:'Hieb',
+      desc:'Ein gezielter Schwerthieb.',
+      req:'W20 + STR gegen RK',
+      play(){
+        const m = mod(PLAYER.stats.STR);
+        const roll = attackRoll(m, `Hieb (STR ${fmtMod(m)})`);
+        if(roll.hit){
+          const dmgRoll = rollDie(8);
+          const dmg = dmgRoll + m;
+          ENEMY.hp = Math.max(0, ENEMY.hp - dmg);
+          log(`Treffer! Schaden: ${dmgRoll} (W8) ${fmtMod(m)} = <b>${dmg}</b>`, 'good');
+        }
+      }
+    },
+    wuchtschlag: {
+      id:'wuchtschlag', type:'Angriff', name:'Wuchtschlag',
+      desc:'Rücksichtsloser Schlag mit voller Kraft — schwerer zu treffen, aber verheerend.',
+      req:'W20 + STR − 2, dafür 2W8 Schaden',
+      play(){
+        const m = mod(PLAYER.stats.STR) - 2;
+        const roll = attackRoll(m, `Wuchtschlag (STR ${fmtMod(m)})`);
+        if(roll.hit){
+          const d1 = rollDie(8), d2 = rollDie(8);
+          const dmg = d1+d2+mod(PLAYER.stats.STR);
+          ENEMY.hp = Math.max(0, ENEMY.hp - dmg);
+          log(`Voller Wucht! Schaden: ${d1}+${d2} (2W8) ${fmtMod(mod(PLAYER.stats.STR))} = <b>${dmg}</b>`, 'good');
+        }
+      }
+    },
+    parade: {
+      id:'parade', type:'Reaktion', name:'Parade',
+      desc:'Du gehst in Deckung. Deine Rüstungsklasse steigt bis zu deinem nächsten Zug um 4.',
+      req:'Kein Wurf nötig',
+      play(){
+        PLAYER.tempAc += 4;
+        log(`Du gehst in Deckung. Rüstungsklasse vorübergehend ${PLAYER.baseAc+PLAYER.tempAc}.`, 'sys');
+      }
+    },
+    finte: {
+      id:'finte', type:'Manöver', name:'Finte',
+      desc:'Du täuschst den Gegner. Bei Erfolg hat deine nächste Angriffskarte Vorteil (zweimal würfeln, besseres Ergebnis).',
+      req:'W20 + GES gegen 10',
+      play(){
+        const m = mod(PLAYER.stats.DEX);
+        const roll = rollDie(20);
+        const total = roll+m;
+        log(`Finte: Wurf ${roll} ${fmtMod(m)} (GES) = ${total} gegen SG 10`, 'sys');
+        if(total >= 10){
+          PLAYER.advantageNext = true;
+          log(`Der Goblin tappt in die Falle — dein nächster Angriff hat <b>Vorteil</b>.`, 'good');
+        } else {
+          log(`Der Goblin lässt sich nicht täuschen.`, 'bad');
+        }
+      }
+    },
+    atemholen: {
+      id:'atemholen', type:'Erholung', name:'Atem holen', exhaust:true,
+      desc:'Ein Moment der Sammlung. Einmal pro Kampf: heile dich.',
+      req:'W10 + Stufe (einmalig)',
+      play(){
+        const heal = rollDie(10) + 1;
+        PLAYER.hp = Math.min(PLAYER.maxHp, PLAYER.hp + heal);
+        PLAYER.secondWindUsed = true;
+        log(`Du holst Atem und heilst <b>${heal}</b> Trefferpunkte.`, 'good');
+      }
+    }
+  };
+
+  // deck as list of card ids
+  let deck = [];
+  let discard = [];
+  let hand = [];
+  let turnLocked = false;
+  let gameOver = false;
+
+  function buildDeck(){
+    deck = ['hieb','hieb','hieb','hieb','wuchtschlag','wuchtschlag','parade','parade','finte','atemholen'];
+    shuffle(deck);
+    discard = [];
+    hand = [];
+  }
+  function shuffle(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+  }
+  function drawHand(){
+    hand = [];
+    while(hand.length < 5){
+      if(deck.length === 0){
+        if(discard.length === 0) break;
+        deck = discard.slice();
+        discard = [];
+        shuffle(deck);
+        log('Der Ablagestapel wird neu gemischt.', 'sys');
+      }
+      hand.push(deck.pop());
+    }
+    renderHand();
+    renderCounts();
+  }
+
+  function rollDie(sides){ return Math.floor(Math.random()*sides)+1; }
+
+  function attackRoll(m, label){
+    let roll, detail;
+    if(PLAYER.advantageNext){
+      const a = rollDie(20), b = rollDie(20);
+      roll = Math.max(a,b);
+      detail = `W20 Vorteil: ${a} / ${b} → ${roll}`;
+      PLAYER.advantageNext = false;
+    } else {
+      roll = rollDie(20);
+      detail = `W20: ${roll}`;
+    }
+    const total = roll + m;
+    const hit = total >= ENEMY.ac;
+    log(`${label}: ${detail} ${fmtMod(m)} = ${total} gegen RK ${ENEMY.ac}`, 'sys');
+    showDie(roll);
+    showStamp(hit);
+    document.getElementById('rollReadout').textContent =
+      `${label}: Wurf ${total} gegen Rüstungsklasse ${ENEMY.ac} — ${hit ? 'Treffer' : 'Verfehlt'}`;
+    return { roll, total, hit };
+  }
+
+  function showDie(n){
+    const die = document.getElementById('die1');
+    const num = document.getElementById('dieNum1');
+    die.classList.remove('rolling');
+    void die.offsetWidth;
+    die.classList.add('rolling');
+    num.textContent = n;
+  }
+  function showStamp(hit){
+    const el = document.getElementById('stampEl');
+    el.className = 'stamp show ' + (hit ? 'hit' : 'miss');
+    el.textContent = hit ? 'TREFFER' : 'VERFEHLT';
+    setTimeout(()=>{ el.className = 'stamp ' + (hit?'hit':'miss'); }, 900);
+  }
+
+  function log(msg, cls){
+    const logEl = document.getElementById('log');
+    const p = document.createElement('p');
+    if(cls) p.className = cls;
+    p.innerHTML = msg;
+    logEl.prepend(p);
+  }
+
+  function renderStats(){
+    const grid = document.getElementById('statGrid');
+    grid.innerHTML = '';
+    const order = [['STR','Stärke'],['DEX','Geschick'],['CON','Konstit.'],['INT','Intell.'],['WIS','Weisheit'],['CHA','Charisma']];
+    order.forEach(([key,label])=>{
+      const score = PLAYER.stats[key];
+      const m = mod(score);
+      const div = document.createElement('div');
+      div.className = 'stat';
+      div.innerHTML = `<div class="label">${label}</div><div class="score">${score}</div><div class="mod">${fmtMod(m)}</div>`;
+      grid.appendChild(div);
+    });
+  }
+
+  function renderVitals(){
+    document.getElementById('acValue').textContent = PLAYER.baseAc + PLAYER.tempAc;
+    document.getElementById('hpValue').textContent = PLAYER.hp;
+    const pct = Math.max(0, (PLAYER.hp/PLAYER.maxHp)*100);
+    const fill = document.getElementById('playerHpFill');
+    fill.style.width = pct+'%';
+    fill.className = 'hp-fill' + (pct <= 35 ? ' low' : '');
+
+    const ePct = Math.max(0, (ENEMY.hp/ENEMY.maxHp)*100);
+    const eFill = document.getElementById('enemyHpFill');
+    eFill.style.width = ePct+'%';
+    eFill.className = 'hp-fill' + (ePct <= 35 ? ' low' : '');
+    document.getElementById('enemyHpText').textContent = `${ENEMY.hp}/${ENEMY.maxHp}`;
+  }
+
+  function renderCounts(){
+    document.getElementById('handCount').textContent = hand.length;
+    document.getElementById('deckCount').textContent = deck.length;
+    document.getElementById('discardCount').textContent = discard.length;
+  }
+
+  function renderHand(){
+    const handEl = document.getElementById('hand');
+    handEl.innerHTML = '';
+    hand.forEach((cardId, idx)=>{
+      const def = CARD_DEFS[cardId];
+      const btn = document.createElement('button');
+      btn.className = 'card';
+      btn.disabled = turnLocked || gameOver;
+      btn.innerHTML = `
+        <div>
+          <div class="ctype">${def.type}</div>
+          <div class="cname">${def.name}</div>
+          <div class="cdesc">${def.desc}</div>
+        </div>
+        <div class="creq">${def.req}</div>
+      `;
+      btn.addEventListener('click', ()=> playCard(idx));
+      handEl.appendChild(btn);
+    });
+  }
+
+  function playCard(idx){
+    if(turnLocked || gameOver) return;
+    const cardId = hand[idx];
+    const def = CARD_DEFS[cardId];
+    turnLocked = true;
+
+    log(`— Du spielst <b>${def.name}</b> —`, 'sys');
+    def.play();
+    renderVitals();
+
+    // resolve hand: exhaust used card if flagged, rest to discard
+    hand.forEach((id,i)=>{
+      if(i === idx && CARD_DEFS[id].exhaust) return; // removed from game
+      discard.push(id);
+    });
+    hand = [];
+    renderHand();
+    renderCounts();
+
+    if(ENEMY.hp <= 0){
+      setTimeout(()=> endGame(true), 500);
+      return;
+    }
+
+    setTimeout(enemyTurn, 800);
+  }
+
+  function enemyTurn(){
+    const roll = rollDie(20);
+    const total = roll + ENEMY.atkBonus;
+    const playerAc = PLAYER.baseAc + PLAYER.tempAc;
+    const hit = total >= playerAc;
+    log(`Der Goblin greift an: W20 ${roll} ${fmtMod(ENEMY.atkBonus)} = ${total} gegen deine RK ${playerAc}`, 'sys');
+    showDie(roll);
+    showStamp(hit);
+    document.getElementById('rollReadout').textContent =
+      `Goblin-Angriff: ${total} gegen deine Rüstungsklasse ${playerAc} — ${hit ? 'Treffer' : 'Verfehlt'}`;
+
+    if(hit){
+      const dmgRoll = rollDie(ENEMY.dmgDie);
+      const dmg = dmgRoll + ENEMY.dmgBonus;
+      PLAYER.hp = Math.max(0, PLAYER.hp - dmg);
+      log(`Du wirst getroffen! Schaden: ${dmgRoll} (W${ENEMY.dmgDie}) +${ENEMY.dmgBonus} = <b>${dmg}</b>`, 'bad');
+    } else {
+      log('Der Angriff geht daneben.', 'good');
+    }
+
+    PLAYER.tempAc = 0; // Parade-Bonus verfällt nach dem gegnerischen Zug
+    renderVitals();
+
+    if(PLAYER.hp <= 0){
+      setTimeout(()=> endGame(false), 400);
+      return;
+    }
+
+    turnLocked = false;
+    setTimeout(drawHand, 500);
+  }
+
+  function endGame(won){
+    gameOver = true;
+    renderHand();
+    document.getElementById('restartBtn').style.display = 'inline-block';
+    const overlay = document.getElementById('overlay');
+    const stamp = document.getElementById('bigStamp');
+    stamp.textContent = won ? 'SIEG' : 'GEFALLEN';
+    stamp.className = 'big-stamp ' + (won ? 'win' : 'lose');
+    overlay.classList.remove('hidden');
+    log(won ? 'Der Goblin fällt. Der Weg ist frei.' : 'Deine Kräfte verlassen dich...', won?'good':'bad');
+  }
+
+  function restart(){
+    PLAYER.hp = PLAYER.maxHp;
+    PLAYER.tempAc = 0;
+    PLAYER.advantageNext = false;
+    PLAYER.secondWindUsed = false;
+    ENEMY.hp = ENEMY.maxHp;
+    gameOver = false;
+    turnLocked = false;
+    document.getElementById('restartBtn').style.display = 'none';
+    document.getElementById('overlay').classList.add('hidden');
+    document.getElementById('log').innerHTML = '';
+    document.getElementById('rollReadout').textContent = 'Wähle eine Karte, um den Kampf zu beginnen.';
+    buildDeck();
+    renderStats();
+    renderVitals();
+    drawHand();
+    log('Ein neuer Goblin versperrt dir den Weg.', 'sys');
+  }
+
+  document.getElementById('restartBtn').addEventListener('click', restart);
+  document.getElementById('overlayRestart').addEventListener('click', restart);
+
+  // init
+  buildDeck();
+  renderStats();
+  renderVitals();
+  drawHand();
+  log('Ein Goblin springt aus dem Schatten hervor!', 'sys');
+
+})();
+</script>
+</body>
+</html>
