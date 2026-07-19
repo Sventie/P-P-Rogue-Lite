@@ -16,3 +16,6 @@ data_*/
 bin/
 obj/
 *.user
+
+# Backup files Godot creates when it migrates a .csproj to a newer SDK version
+*.csproj.old
