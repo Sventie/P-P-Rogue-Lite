@@ -136,3 +136,34 @@ layout_mode = 2
 size_flags_horizontal = 4
 visible = false
 text = "Neuer Versuch"
+
+[node name="PopupLayer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PopupPanel" type="PanelContainer" parent="PopupLayer"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+visible = false
+
+[node name="PopupVBox" type="VBoxContainer" parent="PopupLayer/PopupPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PopupMessageLabel" type="RichTextLabel" parent="PopupLayer/PopupPanel/PopupVBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="PopupStampLabel" type="Label" parent="PopupLayer/PopupPanel/PopupVBox"]
+layout_mode = 2
+theme_type_variation = &"StampLabel"
+horizontal_alignment = 1
+visible = false
+text = "TREFFER"

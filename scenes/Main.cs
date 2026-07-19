@@ -2,6 +2,7 @@ namespace PPRogueLite;
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 using PPRogueLite.Cards;
 using PPRogueLite.Character;
@@ -10,10 +11,23 @@ using PPRogueLite.Combat;
 /// <summary>
 /// Verkabelt die reine Kampf-/Karten-Logik mit der UI. Entspricht dem Ablauf
 /// aus dice-and-cards-prototype.html, nur in C#/Godot statt Vanilla-JS.
+///
+/// Jede Log-Zeile aus dem CombatEngine landet zunächst in einer Warteschlange
+/// und wird nacheinander groß im PopupPanel gezeigt (Würfe zusätzlich mit
+/// Erfolg/Misserfolg-Stempel), bevor sie dauerhaft ins Log wandert. Werte
+/// (HP-Balken etc.) werden erst gerendert, nachdem die zugehörigen Popups
+/// durchgelaufen sind - so wirkt sich eine Aktion nicht "sofort" sichtbar aus.
 /// </summary>
 public partial class Main : Control
 {
     private const int HandSize = 5;
+
+    private readonly record struct PendingLogEntry(string Message, LogTag Tag, RollStamp? Stamp);
+
+    private static readonly Color HpGoodColor = new(0.352941f, 0.478431f, 0.309804f);
+    private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
+
+    private readonly Queue<PendingLogEntry> _pendingLog = new();
 
     private PlayerCharacter _player = null!;
     private Enemy _enemy = null!;
@@ -37,9 +51,9 @@ public partial class Main : Control
     private Label _handLabel = null!;
     private HBoxContainer _handContainer = null!;
     private Button _restartButton = null!;
-
-    private static readonly Color HpGoodColor = new(0.352941f, 0.478431f, 0.309804f);
-    private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
+    private PanelContainer _popupPanel = null!;
+    private RichTextLabel _popupMessageLabel = null!;
+    private Label _popupStampLabel = null!;
 
     private static readonly (Ability Ability, string Label)[] StatOrder =
     {
@@ -70,12 +84,16 @@ public partial class Main : Control
         _handContainer = GetNode<HBoxContainer>("MarginContainer/VBoxContainer/HandContainer");
         _restartButton = GetNode<Button>("MarginContainer/VBoxContainer/RestartButton");
 
+        _popupPanel = GetNode<PanelContainer>("PopupLayer/PopupPanel");
+        _popupMessageLabel = GetNode<RichTextLabel>("PopupLayer/PopupPanel/PopupVBox/PopupMessageLabel");
+        _popupStampLabel = GetNode<Label>("PopupLayer/PopupPanel/PopupVBox/PopupStampLabel");
+
         _restartButton.Pressed += StartNewCombat;
 
         StartNewCombat();
     }
 
-    private void StartNewCombat()
+    private async void StartNewCombat()
     {
         _player = new PlayerCharacter
         {
@@ -106,12 +124,14 @@ public partial class Main : Control
             DamageBonus = 2,
         };
 
-        _engine = new CombatEngine(_player, _enemy, AppendLog, text => _rollReadoutLabel.Text = text);
+        _engine = new CombatEngine(_player, _enemy, EnqueueLog);
         _deck = new Deck(CardCatalog.BuildWarriorStartingDeck());
         _hand = new List<CardDefinition>();
+        _pendingLog.Clear();
         _turnLocked = false;
         _gameOver = false;
 
+        _popupPanel.Visible = false;
         _restartButton.Visible = false;
         _logLabel.Clear();
         _rollReadoutLabel.Text = "Wähle eine Karte, um den Kampf zu beginnen.";
@@ -122,18 +142,21 @@ public partial class Main : Control
 
         RenderStats();
         RenderVitals();
-        DrawHand();
-        AppendLog("Ein Goblin springt aus dem Schatten hervor!", LogTag.System);
+        RenderHand();
+
+        EnqueueLog("Ein Goblin springt aus dem Schatten hervor!", LogTag.System, null);
+        await DrawHandAsync();
     }
 
-    private void DrawHand()
+    private async Task DrawHandAsync()
     {
-        _hand = _deck.DrawHand(HandSize, AppendLog);
+        _hand = _deck.DrawHand(HandSize, (message, tag) => EnqueueLog(message, tag, null));
+        await RevealPendingLogAsync();
         RenderHand();
         RenderCounts();
     }
 
-    private void PlayCard(int index)
+    private async void PlayCard(int index)
     {
         if (_turnLocked || _gameOver)
         {
@@ -142,38 +165,46 @@ public partial class Main : Control
 
         var card = _hand[index];
         _turnLocked = true;
+        RenderHand();
 
-        AppendLog($"— Du spielst [b]{card.DisplayName}[/b] —", LogTag.System);
+        EnqueueLog($"— Du spielst {card.DisplayName} —", LogTag.System, null);
         card.Play(_engine);
-        RenderVitals();
 
         _deck.ResolveHand(_hand, index);
         _hand.Clear();
-        RenderHand();
+
+        await RevealPendingLogAsync();
+        RenderVitals();
         RenderCounts();
+        RenderHand();
 
         if (_enemy.IsDefeated)
         {
-            DelayedCall(0.5, () => EndCombat(true));
+            await Delay(0.4);
+            EndCombat(true);
             return;
         }
 
-        DelayedCall(0.8, EnemyTurn);
+        await Delay(0.6);
+        await EnemyTurnAsync();
     }
 
-    private void EnemyTurn()
+    private async Task EnemyTurnAsync()
     {
         _engine.EnemyAttack();
+        await RevealPendingLogAsync();
         RenderVitals();
 
         if (_player.IsDefeated)
         {
-            DelayedCall(0.4, () => EndCombat(false));
+            await Delay(0.4);
+            EndCombat(false);
             return;
         }
 
         _turnLocked = false;
-        DelayedCall(0.5, DrawHand);
+        await Delay(0.4);
+        await DrawHandAsync();
     }
 
     private void EndCombat(bool won)
@@ -184,13 +215,60 @@ public partial class Main : Control
 
         string message = won ? "Der Goblin fällt. Der Weg ist frei." : "Deine Kräfte verlassen dich...";
         _rollReadoutLabel.Text = message;
-        AppendLog(message, won ? LogTag.Good : LogTag.Bad);
+        EnqueueLog(message, won ? LogTag.Good : LogTag.Bad, null);
+        _ = RevealPendingLogAsync();
     }
 
-    private void DelayedCall(double seconds, Action action)
+    private void EnqueueLog(string message, LogTag tag, RollStamp? stamp)
     {
-        var timer = GetTree().CreateTimer(seconds);
-        timer.Timeout += action;
+        _pendingLog.Enqueue(new PendingLogEntry(message, tag, stamp));
+    }
+
+    private async Task RevealPendingLogAsync()
+    {
+        while (_pendingLog.Count > 0)
+        {
+            var entry = _pendingLog.Dequeue();
+            await ShowPopupAsync(entry);
+            CommitLogEntry(entry);
+        }
+    }
+
+    private async Task ShowPopupAsync(PendingLogEntry entry)
+    {
+        _popupMessageLabel.Text = $"[center]{FormatLogBbcode(entry.Message, entry.Tag)}[/center]";
+
+        if (entry.Stamp is { } stamp)
+        {
+            _popupStampLabel.Visible = true;
+            _popupStampLabel.Text = stamp.Success ? stamp.SuccessText : stamp.FailureText;
+            _popupStampLabel.AddThemeColorOverride("font_color", stamp.Success ? HpGoodColor : HpBadColor);
+        }
+        else
+        {
+            _popupStampLabel.Visible = false;
+        }
+
+        _popupPanel.Visible = true;
+        await Delay(entry.Stamp.HasValue ? 1.1 : 0.8);
+        _popupPanel.Visible = false;
+    }
+
+    private void CommitLogEntry(PendingLogEntry entry)
+    {
+        _logLabel.AppendText(FormatLogBbcode(entry.Message, entry.Tag) + "\n");
+    }
+
+    private static string FormatLogBbcode(string message, LogTag tag) => tag switch
+    {
+        LogTag.Good => $"[color=#3d5a34]{message}[/color]",
+        LogTag.Bad => $"[color=#9c3b3b]{message}[/color]",
+        _ => $"[color=#5c5240][i]{message}[/i][/color]",
+    };
+
+    private async Task Delay(double seconds)
+    {
+        await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
     }
 
     private void RenderStats()
@@ -268,16 +346,5 @@ public partial class Main : Control
             button.Pressed += () => PlayCard(capturedIndex);
             _handContainer.AddChild(button);
         }
-    }
-
-    private void AppendLog(string message, LogTag tag)
-    {
-        string bbcode = tag switch
-        {
-            LogTag.Good => $"[color=#3d5a34]{message}[/color]",
-            LogTag.Bad => $"[color=#9c3b3b]{message}[/color]",
-            _ => $"[color=#5c5240][i]{message}[/i][/color]",
-        };
-        _logLabel.AppendText(bbcode + "\n");
     }
 }

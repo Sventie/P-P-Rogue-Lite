@@ -5,27 +5,29 @@ using PPRogueLite.Character;
 
 /// <summary>
 /// Resolves W20-Angriffswürfe und Werte-Checks für einen Kampf zwischen
-/// PlayerCharacter und Enemy. Kennt keine UI - Main.cs meldet sich über die
-/// log/updateReadout-Callbacks zurück, um Log und Anzeige zu aktualisieren.
+/// PlayerCharacter und Enemy. Kennt keine UI - jede Log-Zeile geht über den
+/// log-Callback raus; Zeilen aus einem Würfelwurf tragen zusätzlich einen
+/// RollStamp (Erfolg/Misserfolg), den Main.cs für das Ergebnis-Popup nutzt.
 /// </summary>
 public sealed class CombatEngine
 {
-    private readonly Action<string, LogTag> _log;
-    private readonly Action<string> _updateReadout;
+    private readonly Action<string, LogTag, RollStamp?> _log;
 
-    public CombatEngine(PlayerCharacter player, Enemy foe, Action<string, LogTag> log, Action<string> updateReadout)
+    public CombatEngine(PlayerCharacter player, Enemy foe, Action<string, LogTag, RollStamp?> log)
     {
         Player = player;
         Foe = foe;
         _log = log;
-        _updateReadout = updateReadout;
     }
 
     public PlayerCharacter Player { get; }
 
     public Enemy Foe { get; }
 
-    public void Log(string message, LogTag tag = LogTag.System) => _log(message, tag);
+    public void Log(string message, LogTag tag = LogTag.System) => _log(message, tag, null);
+
+    private void LogRoll(string message, bool success, string successText, string failureText)
+        => _log(message, LogTag.System, new RollStamp(success, successText, failureText));
 
     public static string FormatMod(int modifier) => (modifier >= 0 ? "+" : string.Empty) + modifier;
 
@@ -51,8 +53,7 @@ public sealed class CombatEngine
         int total = roll + modifier;
         bool hit = total >= Foe.ArmorClass;
 
-        Log($"{label}: {detail} {FormatMod(modifier)} = {total} gegen RK {Foe.ArmorClass}", LogTag.System);
-        _updateReadout($"{label}: Wurf {total} gegen Rüstungsklasse {Foe.ArmorClass} — {(hit ? "Treffer" : "Verfehlt")}");
+        LogRoll($"{label}: {detail} {FormatMod(modifier)} = {total} gegen RK {Foe.ArmorClass}", hit, "TREFFER", "VERFEHLT");
 
         return new AttackResult { Roll = roll, Total = total, IsHit = hit };
     }
@@ -63,7 +64,7 @@ public sealed class CombatEngine
         int total = roll + modifier;
         bool success = total >= dc;
 
-        Log($"{label}: Wurf {roll} {FormatMod(modifier)} = {total} gegen SG {dc}", LogTag.System);
+        LogRoll($"{label}: Wurf {roll} {FormatMod(modifier)} = {total} gegen SG {dc}", success, "ERFOLG", "FEHLSCHLAG");
 
         return new AbilityCheckResult { Roll = roll, Total = total, Success = success };
     }
@@ -75,8 +76,7 @@ public sealed class CombatEngine
         int playerAc = Player.ArmorClass;
         bool hit = total >= playerAc;
 
-        Log($"{Foe.Name} greift an: W20 {roll} {FormatMod(Foe.AttackBonus)} = {total} gegen deine RK {playerAc}", LogTag.System);
-        _updateReadout($"{Foe.Name}-Angriff: {total} gegen deine Rüstungsklasse {playerAc} — {(hit ? "Treffer" : "Verfehlt")}");
+        LogRoll($"{Foe.Name} greift an: W20 {roll} {FormatMod(Foe.AttackBonus)} = {total} gegen deine RK {playerAc}", hit, "TREFFER", "VERFEHLT");
 
         if (hit)
         {
