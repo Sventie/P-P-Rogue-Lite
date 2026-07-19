@@ -131,11 +131,11 @@ layout_mode = 2
 alignment = 1
 theme_override_constants/separation = 10
 
-[node name="RestartButton" type="Button" parent="MarginContainer/VBoxContainer"]
+[node name="ReturnToHubButton" type="Button" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 4
 visible = false
-text = "Neuer Versuch"
+text = "Zurück zum Hub"
 
 [node name="PopupLayer" type="CenterContainer" parent="."]
 layout_mode = 1

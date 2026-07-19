@@ -54,7 +54,7 @@ Ein rundenbasiertes Rogue-lite mit echtem Pen & Paper-Gefühl:
     /cards       (Kartendeck, Handkarten-Logik: CardDefinition + Karten, CardCatalog, Deck)
     /dungeon     (noch leer – nächste Phase)
     /meta        (noch leer – spätere Phase)
-  /scenes        (Main.tscn + zugehöriges Main.cs als UI-/Ablauf-Glue, Godot-Konvention: Script liegt bei seiner Szene)
+  /scenes        (Hub.tscn/Main.tscn + jeweiliges .cs als UI-/Ablauf-Glue, Godot-Konvention: Script liegt bei seiner Szene)
   ```
 
 ## Browser-Prototyp (bereits erstellt)
@@ -79,6 +79,21 @@ Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`) u
 - Popup-Fortschritt läuft über einen "Weiter"-Button statt über einen Timer (`PopupContinueButton`, per `ToSignal` awaited). Der Name der laufenden Aktion (gespielte Karte bzw. Gegner) steht als fester Titel (`PopupActionLabel`) über dem Popup-Inhalt, solange die zugehörigen Zeilen durchgeklickt werden. Die frühere separate "— Du spielst X —"-Log-Zeile wurde entfernt (Karte steht ohnehin im Titel bzw. schon in den Wurf-Zeilen). **Noch nicht in der echten Godot-Umgebung gegengeprüft.**
 
 **Nächster Schritt:** Nutzer testet das Popup/Weiter-Gefühl in Godot und meldet Feinschliff-Wünsche zurück.
+
+## Hub / Menüstruktur (bereits aufgesetzt)
+
+Das Spiel startet jetzt in `scenes/Hub.tscn` (Startszene laut `project.godot`) statt direkt im Kampf – der Hub ist die "Taverne" aus der Meta-Ebene-Planung. Vier Buttons in einem zentrierten Papier-Menüpanel:
+
+- **"Dungeon betreten"** – **funktional**: wechselt per `GetTree().ChangeSceneToFile()` zu `scenes/Main.tscn` und startet damit den Testkampf.
+- **"Karten managen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: eigener Screen mit dem kompletten Deck sowie allen Karten, die aktuell nicht im Deck sind; von dort aus Wechsel in einen Kartenshop (siehe Kartenpacks/Meta-Progression weiter oben).
+- **"Gruppe managen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: alle besessenen Charaktere als Charakterkarten; Anklicken einer Karte öffnet das Charakterbogen-Sheet (Bezug zur Roster-/Gruppen-Planung in der Meta-Ebene oben).
+- **"Mit Loot entkommen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: Weg, einen Run kontrolliert/sicher zu beenden (Loot behalten statt Risiko eines Wipes).
+
+Nach Sieg **oder** Niederlage im Kampf (`Main.cs`, `EndCombat`) zeigt der bisherige Neustart-Button jetzt **"Zurück zum Hub"** und wechselt per Szenenwechsel zurück zu `scenes/Hub.tscn`, statt den Kampf direkt neu zu starten. Jeder erneute Einstieg über "Dungeon betreten" baut den Kampf komplett neu auf (frischer Charakter/Deck/Gegner in `Main._Ready()`), es gibt aktuell keinen persistenten Zustand zwischen Hub und Dungeon (Deck-Änderungen, Loot etc. – das kommt erst mit der Funktionalität der Platzhalter-Buttons).
+
+**Noch nicht in der echten Godot-Umgebung gegengeprüft.**
+
+**Nächster Schritt:** Nutzer testet den Hub/Szenenwechsel in Godot. Danach: Funktionalität für einen der drei Platzhalter-Buttons (voraussichtlich Karten managen) umsetzen.
 
 ## Offene Punkte
 

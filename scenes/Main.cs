@@ -53,7 +53,7 @@ public partial class Main : Control
     private RichTextLabel _logLabel = null!;
     private Label _handLabel = null!;
     private HBoxContainer _handContainer = null!;
-    private Button _restartButton = null!;
+    private Button _returnToHubButton = null!;
     private PanelContainer _popupPanel = null!;
     private Label _popupActionLabel = null!;
     private RichTextLabel _popupMessageLabel = null!;
@@ -87,7 +87,7 @@ public partial class Main : Control
         _logLabel = GetNode<RichTextLabel>("MarginContainer/VBoxContainer/TopRow/RoomPanel/RoomVBox/LogLabel");
         _handLabel = GetNode<Label>("MarginContainer/VBoxContainer/HandLabel");
         _handContainer = GetNode<HBoxContainer>("MarginContainer/VBoxContainer/HandContainer");
-        _restartButton = GetNode<Button>("MarginContainer/VBoxContainer/RestartButton");
+        _returnToHubButton = GetNode<Button>("MarginContainer/VBoxContainer/ReturnToHubButton");
 
         _popupPanel = GetNode<PanelContainer>("PopupLayer/PopupPanel");
         _popupActionLabel = GetNode<Label>("PopupLayer/PopupPanel/PopupVBox/PopupActionLabel");
@@ -95,7 +95,7 @@ public partial class Main : Control
         _popupStampLabel = GetNode<Label>("PopupLayer/PopupPanel/PopupVBox/PopupStampLabel");
         _popupContinueButton = GetNode<Button>("PopupLayer/PopupPanel/PopupVBox/PopupContinueButton");
 
-        _restartButton.Pressed += StartNewCombat;
+        _returnToHubButton.Pressed += ReturnToHub;
 
         StartNewCombat();
     }
@@ -139,7 +139,7 @@ public partial class Main : Control
         _gameOver = false;
 
         _popupPanel.Visible = false;
-        _restartButton.Visible = false;
+        _returnToHubButton.Visible = false;
         _logLabel.Clear();
         _rollReadoutLabel.Text = "Wähle eine Karte, um den Kampf zu beginnen.";
 
@@ -220,13 +220,18 @@ public partial class Main : Control
     {
         _gameOver = true;
         RenderHand();
-        _restartButton.Visible = true;
+        _returnToHubButton.Visible = true;
 
         string message = won ? "Der Goblin fällt. Der Weg ist frei." : "Deine Kräfte verlassen dich...";
         _rollReadoutLabel.Text = message;
         _popupActionLabel.Text = won ? "Sieg" : "Niederlage";
         EnqueueLog(message, won ? LogTag.Good : LogTag.Bad, null);
         _ = RevealPendingLogAsync();
+    }
+
+    private void ReturnToHub()
+    {
+        GetTree().ChangeSceneToFile("res://scenes/Hub.tscn");
     }
 
     private void EnqueueLog(string message, LogTag tag, RollStamp? stamp)
