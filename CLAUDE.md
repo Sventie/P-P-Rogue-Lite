@@ -41,6 +41,7 @@ Ein rundenbasiertes Rogue-lite mit echtem Pen & Paper-Gefühl:
 
 - **Plattform-Ziel:** Steam (PC).
 - **Spiel ist reines 2D** (Entscheidung gefallen – schnellere Entwicklung, keine 3D-Asset-Erstellung nötig).
+- **Zielauflösung: Full HD (1920×1080)** – Fenstergröße in `project.godot` (`[display]`) fest hinterlegt, damit das Spiel von Anfang an in dieser Auflösung startet.
 - **Engine: Godot mit C# – Entscheidung gefallen (Stand jetzt).**
   - Sprache: **C#** (Nutzer kennt C# bereits aus Unity, keine Einarbeitung in GDScript nötig).
   - Gründe: kein aufwändiger Installationsprozess (portable, keine Account-Pflicht wie bei Unity Hub) – wichtig für schnellen Einstieg; kostenlos, Open Source, kein Lizenzthema bei Steam-Release; gut für reines 2D geeignet; Ein-Script-pro-Node-Prinzip erzwingt tendenziell übersichtlichere Struktur als Unitys freies Komponenten-Stacking.
@@ -98,16 +99,20 @@ Nach Sieg **oder** Niederlage im Kampf (`Main.cs`, `EndCombat`) zeigt der bisher
 `scenes/DeckScreen.tscn` (über "Karten managen" im Hub erreichbar) zeigt zwei Spalten in Papier-Panels:
 - **Links:** alle Karten im aktuellen Kampf-Deck ("Im Deck (N)").
 - **Rechts:** alle besessenen Karten, die *nicht* im Deck sind ("Nicht im Deck (N)").
-- Jede Karte wird als deaktivierter `CardButton` (gleiche Theme-Variante wie die Handkarten im Kampf) mit Name + Tooltip (Typ/Beschreibung/Anforderung) dargestellt – **reine Anzeige, noch nicht klickbar/verschiebbar**.
-- "Zurück zum Hub" wechselt zurück zu `scenes/Hub.tscn`.
+- Gleiche Kartentypen werden gruppiert mit Stückzahl gezeigt (z. B. "Hieb ×2" im Deck, "Hieb ×3" im Bestand), statt jede physische Karteninstanz einzeln aufzulisten.
+- **Drag & Drop:** Karten lassen sich zwischen den beiden Spalten verschieben (eine Karte pro Drag-Vorgang). Ziel wird beim Drop anhand der Mausposition über `DeckScreen._DropData` bestimmt (kein eigener Drop-Zonen-Node) – bewegt jeweils eine Karteninstanz zwischen `PlayerCardCollection.DeckCards`/`BenchCards`.
+- **10-Karten-Regel:** Das Deck darf beim Bearbeiten größer oder kleiner als 10 werden, die Anzahl über der Deck-Spalte wird bei mehr als 10 Karten rot. "Zurück zum Hub" ist deaktiviert, solange das Deck **nicht genau 10 Karten** enthält; ein Hinweistext unter den Spalten erklärt warum.
+- "Zurück zum Hub" wechselt zurück zu `scenes/Hub.tscn` (nur klickbar, wenn genau 10 Karten im Deck sind).
 
-Datengrundlage ist die neue `PPRogueLite.Meta.PlayerCardCollection` (`scripts/meta/PlayerCardCollection.cs`) – eine statische Klasse, deren Felder den Prozess über Szenenwechsel hinweg überleben. Sie hält zwei Listen (`DeckCards`, `BenchCards`), aktuell befüllt über `CardCatalog.BuildWarriorStartingDeck()` (10 Karten, identisch zum Kampf-Deck) und das neue `CardCatalog.BuildWarriorBenchCards()` (7 zusätzliche Karten: 2× Hieb, 2× Wuchtschlag, 1× Parade, 1× Finte, 1× Atem holen).
+Datengrundlage ist weiterhin `PPRogueLite.Meta.PlayerCardCollection` (`scripts/meta/PlayerCardCollection.cs`) – eine statische Klasse, deren Felder den Prozess über Szenenwechsel hinweg überleben. Sie hält zwei Listen (`DeckCards`, `BenchCards`), befüllt über `CardCatalog.BuildWarriorStartingDeck()` (10 Karten) und `CardCatalog.BuildWarriorBenchCards()` (7 zusätzliche Karten: 2× Hieb, 2× Wuchtschlag, 1× Parade, 1× Finte, 1× Atem holen).
 
-**Wichtig – noch nicht verbunden:** Der Kampf (`Main.cs`) baut sein Deck weiterhin unabhängig über `CardCatalog.BuildWarriorStartingDeck()` auf und liest **nicht** aus `PlayerCardCollection`. Wer im Deck-Screen später Karten verschiebt, hat also noch keinen Effekt auf den nächsten Kampf – diese Verbindung fehlt noch.
+**Neue wiederverwendbare Kartenansicht `scenes/CardView.tscn`/`CardView.cs`:** zeigt Typ/Name/Beschreibung/Anforderung direkt auf der Karte (keine Hover-Info mehr nötig) und optional eine Stückzahl. Wird sowohl im Deck-Screen (mit `Draggable = true`) als auch für die Handkarten im Kampf (`Main.cs`, mit `Clicked`-Event statt Drag) verwendet – ersetzt die bisherigen einfachen `Button`-Karten. Die alte Theme-Variante `CardButton` (Button-basiert) wurde entfernt und durch `CardPanel` (PanelContainer-basiert) + `CardTypeLabel`/`CardDescriptionLabel`/`CardRequirementLabel` ersetzt.
 
-**Noch nicht in der echten Godot-Umgebung gegengeprüft.**
+**Wichtig – noch nicht verbunden:** Der Kampf (`Main.cs`) baut sein Deck weiterhin unabhängig über `CardCatalog.BuildWarriorStartingDeck()` auf und liest **nicht** aus `PlayerCardCollection`. Karten, die im Deck-Screen verschoben werden, wirken sich also noch nicht auf den nächsten Kampf aus – diese Verbindung fehlt noch.
 
-**Nächster Schritt:** Nutzer testet Hub, Deck-Screen und die Szenenwechsel in Godot. Danach mögliche Folgeschritte: Karten im Deck-Screen klickbar machen, um sie zwischen Deck und Bestand zu verschieben; `Main.cs` an `PlayerCardCollection` anbinden, damit Deck-Änderungen tatsächlich in den nächsten Kampf übernommen werden; Kartenshop; "Gruppe managen".
+**Noch nicht in der echten Godot-Umgebung gegengeprüft – das gilt besonders für das Drag & Drop** (`_CanDropData`/`_DropData` auf dem Root-Control, verlässt sich auf Godots Ancestor-Bubbling für Drop-Ziele, die selbst nichts überschreiben).
+
+**Nächster Schritt:** Nutzer testet Drag & Drop, Stückzahl-Anzeige und die 10-Karten-Sperre in Godot. Danach mögliche Folgeschritte: `Main.cs` an `PlayerCardCollection` anbinden, damit Deck-Änderungen tatsächlich in den nächsten Kampf übernommen werden; Kartenshop; "Gruppe managen".
 
 ## Offene Punkte
 

@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=11 format=3]
+[gd_resource type="Theme" load_steps=9 format=3]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.847059, 0.796078, 0.627451, 1)
@@ -69,40 +69,6 @@ content_margin_top = 10.0
 content_margin_right = 12.0
 content_margin_bottom = 10.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_hover"]
-bg_color = Color(0.847059, 0.796078, 0.627451, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.85098, 0.698039, 0.361961, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.55)
-shadow_size = 14
-content_margin_left = 12.0
-content_margin_top = 10.0
-content_margin_right = 12.0
-content_margin_bottom = 10.0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_disabled"]
-bg_color = Color(0.847059, 0.796078, 0.627451, 0.35)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0, 0, 0, 0.1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-content_margin_left = 12.0
-content_margin_top = 10.0
-content_margin_right = 12.0
-content_margin_bottom = 10.0
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_log_panel"]
 bg_color = Color(0, 0, 0, 0.04)
 border_width_left = 1
@@ -152,17 +118,22 @@ Button/colors/font_hover_color = Color(0.070588, 0.054902, 0.039216, 1)
 Button/colors/font_pressed_color = Color(0.070588, 0.054902, 0.039216, 1)
 Button/colors/font_disabled_color = Color(0.070588, 0.054902, 0.039216, 0.5)
 
-CardButton/base_type = &"Button"
-CardButton/styles/normal = SubResource("StyleBoxFlat_card_normal")
-CardButton/styles/hover = SubResource("StyleBoxFlat_card_hover")
-CardButton/styles/pressed = SubResource("StyleBoxFlat_card_hover")
-CardButton/styles/disabled = SubResource("StyleBoxFlat_card_disabled")
-CardButton/colors/font_color = Color(0.141176, 0.109804, 0.082353, 1)
-CardButton/colors/font_hover_color = Color(0.141176, 0.109804, 0.082353, 1)
-CardButton/colors/font_disabled_color = Color(0.141176, 0.109804, 0.082353, 0.35)
-CardButton/font_sizes/font_size = 16
+CardPanel/base_type = &"PanelContainer"
+CardPanel/styles/panel = SubResource("StyleBoxFlat_card_normal")
 
 Label/colors/font_color = Color(0.141176, 0.109804, 0.082353, 1)
+
+CardTypeLabel/base_type = &"Label"
+CardTypeLabel/colors/font_color = Color(0.611765, 0.231373, 0.231373, 1)
+CardTypeLabel/font_sizes/font_size = 11
+
+CardDescriptionLabel/base_type = &"Label"
+CardDescriptionLabel/colors/font_color = Color(0.360784, 0.321569, 0.25098, 1)
+CardDescriptionLabel/font_sizes/font_size = 12
+
+CardRequirementLabel/base_type = &"Label"
+CardRequirementLabel/colors/font_color = Color(0.266667, 0.313725, 0.34902, 1)
+CardRequirementLabel/font_sizes/font_size = 11
 
 TitleLabel/base_type = &"Label"
 TitleLabel/colors/font_color = Color(0.85098, 0.698039, 0.361961, 1)

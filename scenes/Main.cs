@@ -59,6 +59,7 @@ public partial class Main : Control
     private RichTextLabel _popupMessageLabel = null!;
     private Label _popupStampLabel = null!;
     private Button _popupContinueButton = null!;
+    private PackedScene _cardViewScene = null!;
 
     private static readonly (Ability Ability, string Label)[] StatOrder =
     {
@@ -94,6 +95,7 @@ public partial class Main : Control
         _popupMessageLabel = GetNode<RichTextLabel>("PopupLayer/PopupPanel/PopupVBox/PopupMessageLabel");
         _popupStampLabel = GetNode<Label>("PopupLayer/PopupPanel/PopupVBox/PopupStampLabel");
         _popupContinueButton = GetNode<Button>("PopupLayer/PopupPanel/PopupVBox/PopupContinueButton");
+        _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
 
         _returnToHubButton.Pressed += ReturnToHub;
 
@@ -361,16 +363,11 @@ public partial class Main : Control
             var card = _hand[i];
             int capturedIndex = i;
 
-            var button = new Button
-            {
-                Text = card.DisplayName,
-                TooltipText = $"{card.CardType}\n{card.Description}\n{card.RequirementText}",
-                Disabled = _turnLocked || _gameOver,
-                CustomMinimumSize = new Vector2(150, 70),
-                ThemeTypeVariation = "CardButton",
-            };
-            button.Pressed += () => PlayCard(capturedIndex);
-            _handContainer.AddChild(button);
+            var cardView = _cardViewScene.Instantiate<CardView>();
+            cardView.Populate(card);
+            cardView.Disabled = _turnLocked || _gameOver;
+            cardView.Clicked += () => PlayCard(capturedIndex);
+            _handContainer.AddChild(cardView);
         }
     }
 }

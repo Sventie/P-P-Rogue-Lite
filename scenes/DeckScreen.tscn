@@ -57,7 +57,6 @@ theme_override_constants/separation = 10
 
 [node name="DeckHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox"]
 layout_mode = 2
-theme_type_variation = &"PopupHeaderLabel"
 text = "Im Deck"
 
 [node name="DeckScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox"]
@@ -68,7 +67,7 @@ horizontal_scroll_mode = 0
 [node name="DeckGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox/DeckScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-columns = 2
+columns = 3
 
 [node name="BenchColumn" type="PanelContainer" parent="MarginContainer/VBoxContainer/ColumnsRow"]
 layout_mode = 2
@@ -81,7 +80,6 @@ theme_override_constants/separation = 10
 
 [node name="BenchHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox"]
 layout_mode = 2
-theme_type_variation = &"PopupHeaderLabel"
 text = "Nicht im Deck"
 
 [node name="BenchScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox"]
@@ -92,7 +90,13 @@ horizontal_scroll_mode = 0
 [node name="BenchGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox/BenchScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-columns = 2
+columns = 3
+
+[node name="DeckStatusLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+horizontal_alignment = 1
+visible = false
+text = "Zu viele Karten im Deck."
 
 [node name="BackButton" type="Button" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
