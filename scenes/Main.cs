@@ -364,10 +364,10 @@ public partial class Main : Control
             int capturedIndex = i;
 
             var cardView = _cardViewScene.Instantiate<CardView>();
-            cardView.Populate(card);
             cardView.Disabled = _turnLocked || _gameOver;
             cardView.Clicked += () => PlayCard(capturedIndex);
             _handContainer.AddChild(cardView);
+            cardView.Populate(card);
         }
     }
 }

@@ -119,10 +119,10 @@ public partial class DeckScreen : Control
         foreach (var (card, count) in grouped)
         {
             var cardView = _cardViewScene.Instantiate<CardView>();
-            cardView.Populate(card, count);
             cardView.Draggable = true;
             cardView.Source = source;
             grid.AddChild(cardView);
+            cardView.Populate(card, count);
         }
     }
 
