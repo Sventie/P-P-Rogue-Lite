@@ -70,18 +70,9 @@ Ein spielbarer HTML/JS-Prototyp existiert bereits (Datei: `dice-and-cards-protot
 
 ## Godot-Projekt (bereits aufgesetzt)
 
-Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`) und enthält die 1:1 aus dem Browser-Prototyp übertragene Kampflogik in C#:
-- Gleicher Testkampf wie im Prototyp: Rurik Steinfaust (Krieger) gegen Höhlengoblin, gleiche Stats/AC/HP, gleiches 10-Karten-Deck (Hieb, Wuchtschlag, Parade, Finte, Atem holen).
-- `CombatEngine` löst W20-Angriffswürfe/Checks inkl. Vorteil-Mechanik auf, kennt keine UI.
-- `scenes/Main.tscn` + `scenes/Main.cs` sind die (bewusst schlicht gehaltene, noch ungestylte) UI: Charakterbogen, Gegner-Panel, Log, Handkarten als Buttons.
-- **Noch nicht in der Godot-Editor-Umgebung getestet/geöffnet** – Claude Code hat in dieser Session keinen Zugriff auf Godot/.NET SDK, das Projekt wurde "blind" nach Godot-4-Konventionen angelegt. Erster Test durch den Nutzer lokal steht noch aus.
-- Erster Grundtest durch den Nutzer erfolgreich: Kampf läuft in Godot 4.7 (Nutzer hat das Projekt beim Öffnen automatisch migriert) genauso wie im Prototyp.
-- Erster visueller Stylingpass umgesetzt: `theme/game_theme.tres` überträgt die Papier-&-Schreibtisch-Farbpalette des Prototyps (dunkler Hintergrund, Papier-Panels, Messing-Buttons, Karten als eigene "CardButton"-Theme-Variante, grün/rote HP-Balken je nach Füllstand). Bewusst ohne die Google-Fonts (Special Elite/Crimson Text) aus dem Prototyp – Systemfont vorerst, Fonts können später ergänzt werden.
-- Stylingpass vom Nutzer erfolgreich getestet und für gut befunden.
-- Ergebnis-Popup ergänzt (Reveal-Warteschlange): Jede Log-Zeile aus dem Kampf (Würfe, Schaden, Heilung, Systemtexte) erscheint zuerst groß zentriert im `PopupPanel` – Würfe zusätzlich mit Erfolg/Misserfolg-Stempel (TREFFER/VERFEHLT bzw. ERFOLG/FEHLSCHLAG) – und wandert erst danach dauerhaft ins Log. HP-Balken/Werte werden ebenfalls erst nach Abschluss der zugehörigen Popups aktualisiert, statt sofort. Ablauf in `Main.cs` dafür auf `async`/`await` umgestellt (`PlayCard`, `EnemyTurnAsync`, `DrawHandAsync`).
-- Popup-Fortschritt läuft über einen "Weiter"-Button statt über einen Timer (`PopupContinueButton`, per `ToSignal` awaited). Der Name der laufenden Aktion (gespielte Karte bzw. Gegner) steht als fester Titel (`PopupActionLabel`) über dem Popup-Inhalt, solange die zugehörigen Zeilen durchgeklickt werden. Die frühere separate "— Du spielst X —"-Log-Zeile wurde entfernt (Karte steht ohnehin im Titel bzw. schon in den Wurf-Zeilen). **Noch nicht in der echten Godot-Umgebung gegengeprüft.**
-
-**Nächster Schritt:** Nutzer testet das Popup/Weiter-Gefühl in Godot und meldet Feinschliff-Wünsche zurück.
+Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`). Ursprünglich wurde hier die 1:1 aus dem Browser-Prototyp übertragene **rundenbasierte** Kampflogik umgesetzt und vom Nutzer erfolgreich in Godot 4.7 getestet (`scenes/Main.tscn`/`Main.cs`, `CombatEngine`, Karten-Popup-System mit "Weiter"-Button) – dieser Teil ist durch den Pivot zu Echtzeit inzwischen **abgelöst** (siehe "Altlasten" unten), war aber die Basis für zwei bis heute genutzte Dinge:
+- **Theme** `theme/game_theme.tres`: Papier-&-Schreibtisch-Farbpalette (dunkler Hintergrund, Papier-Panels, Messing-Buttons, grün/rote HP-Balken), vom Nutzer getestet und für gut befunden. Wird von **allen** aktuellen Szenen (Hub, Arena, DeckScreen) weiterverwendet. Bewusst ohne die Google-Fonts (Special Elite/Crimson Text) aus dem Prototyp – Systemfont, Fonts können später ergänzt werden.
+- **Popup-Muster** (Ergebnis zentriert zeigen, erst nach "Weiter"-Klick weiter, kein Timer): Das Prinzip aus dem alten Kampf-Popup lebt im Level-up-Screen der Echtzeit-Arena weiter (siehe dort).
 
 ## Hub / Menüstruktur (bereits aufgesetzt)
 
@@ -94,7 +85,7 @@ Das Spiel startet jetzt in `scenes/Hub.tscn` (Startszene laut `project.godot`) s
 
 Bei Niederlage in der Arena (siehe unten) erscheint ein **"Zurück zum Hub"**-Button und wechselt per Szenenwechsel zurück zu `scenes/Hub.tscn`. Jeder erneute Einstieg über "Dungeon betreten" baut den Run komplett neu auf (frischer Charakter/Deck-Ziehung/Gegner-Spawns).
 
-**Noch nicht in der echten Godot-Umgebung gegengeprüft.**
+Vom Nutzer in Godot getestet, funktioniert.
 
 ## Echtzeit-Arena (bereits aufgesetzt, löst den alten Main.tscn-Kampf ab)
 
@@ -116,9 +107,7 @@ Neue Szenen `scenes/Arena.tscn` + `scenes/Player.tscn` + `scenes/EnemyGoblin.tsc
 
 **Bewusste Vereinfachungen dieser ersten Version** (nicht vergessen, wenn's ans Polishing geht): keine Godot-Physik/Kollisionslayer (nur Distanzchecks, Gegner können sich gegenseitig überlappen), keine Schwierigkeits-/Spawnrate-Steigerung über die Zeit, keine Auswahl zwischen mehreren gezogenen Karten beim Level-up, kein Sprite/Animationen (nur gezeichnete Kreise/Formen), Cooldown-Balken bei doppelten Kartentypen zeigt nur die erste Instanz.
 
-**Noch nicht in der echten Godot-Umgebung gegengeprüft** – das gilt hier besonders, da es die erste Echtzeit-/Bewegungs-Logik im Projekt ist (bisher nur UI-lastige Szenen).
-
-**Nächster Schritt:** Nutzer testet Bewegung/Angriffe/Level-up-Ziehungen/Game-Over-Flow in Godot. Danach mögliche Folgeschritte: Schwierigkeitskurve, Auswahl zwischen mehreren gezogenen Karten, echte Sprites, Balancing.
+Vom Nutzer in Godot getestet, funktioniert (Bewegung, Angriffe, Ability-Leiste, Cooldowns, XP/Level-up-Pause, Deck-Stapel-Grafik, Game-Over-Flow) – iterativ über mehrere Runden verfeinert (siehe Balance-Werte oben: Goblin-RK 8, 2 XP/Level).
 
 ## Altlasten: alter rundenbasierter Kampf (nicht mehr erreichbar, noch nicht gelöscht)
 
@@ -140,17 +129,21 @@ Datengrundlage ist weiterhin `PPRogueLite.Meta.PlayerCardCollection` (`scripts/m
 
 **Jetzt verbunden:** Die Echtzeit-Arena (`Player.cs`) liest `PlayerCardCollection.DeckCards` beim Run-Start (kopiert die Zusammensetzung in ein laufeigenes `Deck`) – Karten, die im Deck-Screen verschoben werden, wirken sich also auf den **nächsten** Run aus (siehe Echtzeit-Arena-Abschnitt oben). Der alte rundenbasierte Kampf (`Main.cs`) hatte diese Verbindung nie bekommen und ist inzwischen ohnehin nicht mehr erreichbar (siehe Altlasten oben).
 
-**Noch nicht in der echten Godot-Umgebung gegengeprüft.**
+Vom Nutzer in Godot getestet, funktioniert (×/+-Buttons, Stückzahl-Anzeige, 10-Karten-Sperre).
 
-**Nächster Schritt:** Nutzer testet die ×/+-Buttons, Stückzahl-Anzeige und die 10-Karten-Sperre in Godot. Danach mögliche Folgeschritte: Kartenshop; "Gruppe managen".
+## Offene Punkte / nächste Schritte
 
-## Offene Punkte
+Bekannte offene Themen für die Weiterentwicklung, ungefähr in Reihenfolge sinnvoller Angriffsreihenfolge (nichts davon ist aktuell in Arbeit):
 
-- Konkrete Klassen über den Krieger hinaus definieren.
-- Dungeon-Generierungsalgorithmus (Layout, Encounter-Verteilung) – bisher nur eine einzelne Arena, keine Struktur mehrerer Räume/Encounter.
-- Balancing von Karten-Synergien und Progressionskurve (XP-pro-Level, Fähigkeiten-Cooldowns, Gegner-Spawnrate – aktuell nur grobe erste Werte, ungetestet).
-- Konkretes Reliquien/Bonus-System ausarbeiten.
-- Schwierigkeitssteigerung über die Zeit in der Arena (aktuell konstante Spawnrate).
+- **Deck-Erschöpfung:** Ist das Deck leer (nach ca. Level 11 bei 10 Karten), liefert `LevelUp()` einfach keine neue Fähigkeit mehr (stiller No-op, `drawn.Count == 0` → return). Bewusst nicht behoben, kein akuter Bedarf – möglicher Ansatz später: Nachziehstapel aus ausgerüsteten Karten neu mischen, oder bei XP-Überschuss einfach nichts mehr passieren lassen.
 - Auswahl zwischen mehreren gezogenen Karten beim Level-up (aktuell wird automatisch die eine gezogene Karte ausgerüstet).
+- Schwierigkeitssteigerung über die Zeit in der Arena (aktuell konstante Spawnrate von 1,5s, keine Steigerung).
+- Balancing von Karten-Synergien und Progressionskurve (XP-pro-Level, Fähigkeiten-Cooldowns, Gegner-Spawnrate – aktuell grobe Testwerte, bewusst leicht gestellt zum schnellen Iterieren, noch nicht auf "echtes" Balancing hin geprüft).
+- Echte Sprites/Animationen statt gezeichneter Kreise/Formen.
 - Godot-Physik/Kollisionslayer für die Arena einführen, falls die reinen Distanzchecks nicht mehr reichen (z. B. für Gegner-Ausweichverhalten untereinander).
+- Dungeon-Generierungsalgorithmus (Layout, Encounter-Verteilung) – bisher nur eine einzelne Arena, keine Struktur mehrerer Räume/Encounter.
+- Konkretes Reliquien/Bonus-System ausarbeiten (Zwei-Schienen-Modell, siehe Kampfsystem-Abschnitt oben).
+- Konkrete Klassen über den Krieger hinaus definieren.
+- "Gruppe managen" und "Mit Loot entkommen" im Hub mit Funktion füllen (siehe Meta-Ebene-Planung oben).
+- Kartenshop / Kartenpacks / Freischaltungen (Meta-Progression).
 - Entscheidung, ob/wann die Altlasten (alter rundenbasierter Kampf, siehe eigener Abschnitt) endgültig gelöscht werden.
