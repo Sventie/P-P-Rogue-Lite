@@ -46,50 +46,52 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="DeckColumn" type="PanelContainer" parent="MarginContainer/VBoxContainer/ColumnsRow"]
+[node name="DeckColumnWrapper" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ColumnsRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_constants/separation = 8
 
-[node name="DeckVBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumn"]
+[node name="DeckHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumnWrapper"]
 layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="DeckHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox"]
-custom_minimum_size = Vector2(0, 26)
-layout_mode = 2
+theme_type_variation = &"ColumnHeaderLabel"
 text = "Im Deck"
 
-[node name="DeckScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox"]
+[node name="DeckColumn" type="PanelContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumnWrapper"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DeckScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumnWrapper/DeckColumn"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="DeckGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox/DeckScroll"]
+[node name="DeckGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumnWrapper/DeckColumn/DeckScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 columns = 3
 
-[node name="BenchColumn" type="PanelContainer" parent="MarginContainer/VBoxContainer/ColumnsRow"]
+[node name="BenchColumnWrapper" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ColumnsRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_constants/separation = 8
 
-[node name="BenchVBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumn"]
+[node name="BenchHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumnWrapper"]
 layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="BenchHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox"]
-custom_minimum_size = Vector2(0, 26)
-layout_mode = 2
+theme_type_variation = &"ColumnHeaderLabel"
 text = "Nicht im Deck"
 
-[node name="BenchScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox"]
+[node name="BenchColumn" type="PanelContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumnWrapper"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BenchScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumnWrapper/BenchColumn"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="BenchGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox/BenchScroll"]
+[node name="BenchGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumnWrapper/BenchColumn/BenchScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 columns = 3

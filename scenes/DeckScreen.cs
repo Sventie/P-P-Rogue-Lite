@@ -35,11 +35,11 @@ public partial class DeckScreen : Control
     {
         _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
 
-        _deckHeaderLabel = GetNode<Label>("MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox/DeckHeaderLabel");
-        _deckGrid = GetNode<GridContainer>("MarginContainer/VBoxContainer/ColumnsRow/DeckColumn/DeckVBox/DeckScroll/DeckGrid");
+        _deckHeaderLabel = GetNode<Label>("MarginContainer/VBoxContainer/ColumnsRow/DeckColumnWrapper/DeckHeaderLabel");
+        _deckGrid = GetNode<GridContainer>("MarginContainer/VBoxContainer/ColumnsRow/DeckColumnWrapper/DeckColumn/DeckScroll/DeckGrid");
 
-        _benchHeaderLabel = GetNode<Label>("MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox/BenchHeaderLabel");
-        _benchGrid = GetNode<GridContainer>("MarginContainer/VBoxContainer/ColumnsRow/BenchColumn/BenchVBox/BenchScroll/BenchGrid");
+        _benchHeaderLabel = GetNode<Label>("MarginContainer/VBoxContainer/ColumnsRow/BenchColumnWrapper/BenchHeaderLabel");
+        _benchGrid = GetNode<GridContainer>("MarginContainer/VBoxContainer/ColumnsRow/BenchColumnWrapper/BenchColumn/BenchScroll/BenchGrid");
 
         _deckStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/DeckStatusLabel");
         _deckStatusLabel.AddThemeColorOverride("font_color", BadColor);
