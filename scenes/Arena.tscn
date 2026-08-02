@@ -34,6 +34,10 @@ layout_mode = 2
 size_flags_vertical = 0
 theme_override_constants/separation = 6
 
+[node name="AbilityBar" type="HBoxContainer" parent="HUD/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
 [node name="HpLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"DeskLabel"

@@ -16,14 +16,20 @@ public partial class EnemyGoblin : Node2D
     private const float Radius = 14f;
     private const float ContactRange = 26f;
     private const float ContactCooldown = 1.0f;
+    private const float HpBarWidth = 30f;
+    private const float HpBarHeight = 4f;
+    private const float HpBarOffsetY = -24f;
 
     private static readonly Color BodyColor = new(0.611765f, 0.231373f, 0.231373f);
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
+    private static readonly Color HpBarBackground = new(0f, 0f, 0f, 0.5f);
+    private static readonly Color HpBarFill = new(0.352941f, 0.478431f, 0.309804f);
 
     public CharacterEnemy Stats { get; private set; } = null!;
 
     private Player? _player;
     private float _contactTimer;
+    private bool _disabled;
     private PackedScene _floatingTextScene = null!;
 
     public override void _Ready()
@@ -51,11 +57,17 @@ public partial class EnemyGoblin : Node2D
     public override void _Draw()
     {
         DrawCircle(Vector2.Zero, Radius, BodyColor);
+
+        var topLeft = new Vector2(-HpBarWidth / 2f, HpBarOffsetY);
+        DrawRect(new Rect2(topLeft, new Vector2(HpBarWidth, HpBarHeight)), HpBarBackground);
+
+        float ratio = Stats.MaxHp > 0 ? Mathf.Clamp((float)Stats.Hp / Stats.MaxHp, 0f, 1f) : 0f;
+        DrawRect(new Rect2(topLeft, new Vector2(HpBarWidth * ratio, HpBarHeight)), HpBarFill);
     }
 
     public override void _Process(double delta)
     {
-        if (_player is null || Stats.IsDefeated)
+        if (_disabled || _player is null || Stats.IsDefeated)
         {
             return;
         }
@@ -102,6 +114,8 @@ public partial class EnemyGoblin : Node2D
     public void TakeDamage(int amount)
     {
         Stats.TakeDamage(amount);
+        QueueRedraw();
+
         if (!Stats.IsDefeated)
         {
             return;
@@ -109,6 +123,11 @@ public partial class EnemyGoblin : Node2D
 
         _player?.GrantXp(1);
         QueueFree();
+    }
+
+    public void SetDisabled(bool disabled)
+    {
+        _disabled = disabled;
     }
 
     private void SpawnFloatingText(Color color, string text)

@@ -2,6 +2,7 @@ namespace PPRogueLite;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using PPRogueLite.Cards;
 using PPRogueLite.Character;
@@ -31,6 +32,7 @@ public partial class Player : Node2D
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
     private static readonly Color HitColor = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color CritColor = new(0.85098f, 0.698039f, 0.361961f);
+    private static readonly Color RangeColor = new(0.85098f, 0.698039f, 0.361961f, 0.3f);
 
     private sealed class ActiveAbility
     {
@@ -48,11 +50,21 @@ public partial class Player : Node2D
         public float Timer;
     }
 
+    /// <summary>Feuert bei jeder gezogenen Karte (auch Duplikaten) - für die Level-up-Anzeige.</summary>
     public event Action<CardDefinition>? AbilityGained;
+
+    /// <summary>Feuert nur, wenn der gezogene Kartentyp noch nicht aktiv war - für die Fähigkeiten-Leiste.</summary>
+    public event Action<CardDefinition>? NewAbilityTypeUnlocked;
 
     public PlayerCharacter Character { get; private set; } = null!;
 
     public int EffectiveArmorClass => Character.ArmorClass + (_paradeTimer > 0f ? (int)ParadeBonus : 0);
+
+    /// <summary>Aktuell aktive Fähigkeiten, ein Eintrag pro verschiedenem Kartentyp.</summary>
+    public IEnumerable<CardDefinition> EquippedAbilityTypes => _abilities
+        .Select(ability => ability.Card)
+        .GroupBy(card => card.Id)
+        .Select(group => group.First());
 
     private readonly List<ActiveAbility> _abilities = new();
     private Deck _runDeck = null!;
@@ -96,6 +108,7 @@ public partial class Player : Node2D
     public override void _Draw()
     {
         DrawCircle(Vector2.Zero, Radius, BodyColor);
+        DrawArc(Vector2.Zero, MeleeRange, 0f, Mathf.Tau, 64, RangeColor, 2f, true);
     }
 
     public override void _Process(double delta)
@@ -261,11 +274,36 @@ public partial class Player : Node2D
 
     private void EquipAbility(CardDefinition card, bool announce)
     {
+        bool isNewType = !_abilities.Any(ability => ability.Card.Id == card.Id);
+
         _abilities.Add(new ActiveAbility(card, CooldownFor(card.Id)));
+
         if (announce)
         {
             AbilityGained?.Invoke(card);
         }
+
+        if (isNewType)
+        {
+            NewAbilityTypeUnlocked?.Invoke(card);
+        }
+    }
+
+    /// <summary>
+    /// Fortschritt (0..1) bis zum nächsten Auslösen der ersten aktiven
+    /// Fähigkeit mit dieser Karten-Id - für die Cooldown-Anzeige in der
+    /// Fähigkeiten-Leiste. Bei mehreren Instanzen desselben Kartentyps wird
+    /// nur die erste (primäre) angezeigt.
+    /// </summary>
+    public float GetCooldownProgress(string cardId)
+    {
+        var ability = _abilities.FirstOrDefault(a => a.Card.Id == cardId);
+        if (ability is null)
+        {
+            return 0f;
+        }
+
+        return Mathf.Clamp(1f - (ability.Timer / ability.Cooldown), 0f, 1f);
     }
 
     private static float CooldownFor(string cardId) => cardId switch
