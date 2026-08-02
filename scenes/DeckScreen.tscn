@@ -65,6 +65,7 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
 
 [node name="DeckGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/DeckColumnWrapper/DeckColumn/DeckScroll"]
 layout_mode = 2
@@ -90,6 +91,7 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
 
 [node name="BenchGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/ColumnsRow/BenchColumnWrapper/BenchColumn/BenchScroll"]
 layout_mode = 2

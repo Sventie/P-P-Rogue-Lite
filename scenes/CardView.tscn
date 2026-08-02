@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scenes/CardView.cs" id="1"]
 
 [node name="CardView" type="Control"]
-custom_minimum_size = Vector2(170, 130)
+custom_minimum_size = Vector2(190, 190)
 layout_mode = 2
 mouse_filter = 0
 script = ExtResource("1")
@@ -18,28 +18,34 @@ grow_vertical = 2
 mouse_filter = 1
 theme_type_variation = &"CardPanel"
 
-[node name="CardVBox" type="VBoxContainer" parent="Panel"]
+[node name="CardScroll" type="ScrollContainer" parent="Panel"]
 layout_mode = 2
+mouse_filter = 1
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+
+[node name="CardVBox" type="VBoxContainer" parent="Panel/CardScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="TypeLabel" type="Label" parent="Panel/CardVBox"]
+[node name="TypeLabel" type="Label" parent="Panel/CardScroll/CardVBox"]
 layout_mode = 2
 theme_type_variation = &"CardTypeLabel"
 text = "ANGRIFF"
 
-[node name="NameLabel" type="Label" parent="Panel/CardVBox"]
+[node name="NameLabel" type="Label" parent="Panel/CardScroll/CardVBox"]
 layout_mode = 2
 autowrap_mode = 2
 text = "Hieb"
 
-[node name="DescriptionLabel" type="Label" parent="Panel/CardVBox"]
+[node name="DescriptionLabel" type="Label" parent="Panel/CardScroll/CardVBox"]
 layout_mode = 2
 theme_type_variation = &"CardDescriptionLabel"
 autowrap_mode = 2
-size_flags_vertical = 3
 text = "Ein gezielter Schwerthieb."
 
-[node name="RequirementLabel" type="Label" parent="Panel/CardVBox"]
+[node name="RequirementLabel" type="Label" parent="Panel/CardScroll/CardVBox"]
 layout_mode = 2
 theme_type_variation = &"CardRequirementLabel"
 autowrap_mode = 2

@@ -44,10 +44,10 @@ public partial class CardView : Control
 
     public override void _Ready()
     {
-        _typeLabel = GetNode<Label>("Panel/CardVBox/TypeLabel");
-        _nameLabel = GetNode<Label>("Panel/CardVBox/NameLabel");
-        _descriptionLabel = GetNode<Label>("Panel/CardVBox/DescriptionLabel");
-        _requirementLabel = GetNode<Label>("Panel/CardVBox/RequirementLabel");
+        _typeLabel = GetNode<Label>("Panel/CardScroll/CardVBox/TypeLabel");
+        _nameLabel = GetNode<Label>("Panel/CardScroll/CardVBox/NameLabel");
+        _descriptionLabel = GetNode<Label>("Panel/CardScroll/CardVBox/DescriptionLabel");
+        _requirementLabel = GetNode<Label>("Panel/CardScroll/CardVBox/RequirementLabel");
         _actionButton = GetNode<Button>("ActionButton");
         _actionButton.Pressed += () => ActionClicked?.Invoke();
     }
