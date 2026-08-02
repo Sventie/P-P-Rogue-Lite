@@ -8,10 +8,9 @@ using PPRogueLite.Cards;
 /// Felder überleben, solange der Prozess läuft): welche Karten aktuell im
 /// Kampf-Deck sind und welche im Bestand, aber nicht im Deck.
 ///
-/// Aktuell nur für die Anzeige im Deck-Screen genutzt. Der Kampf baut sein
-/// Deck weiterhin unabhängig über CardCatalog.BuildWarriorStartingDeck()
-/// auf - eine Verbindung (Deck-Änderungen wirken sich auf den nächsten
-/// Kampf aus) ist noch nicht hergestellt, siehe CLAUDE.md.
+/// Player.cs kopiert DeckCards beim Arena-Start in ein laufeigenes Deck -
+/// Änderungen im Deck-Screen wirken sich also auf den nächsten Run aus,
+/// nie auf einen laufenden.
 /// </summary>
 public static class PlayerCardCollection
 {

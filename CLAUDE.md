@@ -59,6 +59,44 @@ Ursprünglich war der Kampf rundenbasiert (Karte klicken → Würfel-Popup → E
     /meta        (PlayerCardCollection – Kartenbesitz über Szenenwechsel/Runs hinweg)
   /scenes        (Hub/Arena/Player/EnemyGoblin/FloatingText/DeckScreen/CardView/Main + jeweiliges .cs als UI-/Ablauf-Glue, Godot-Konvention: Script liegt bei seiner Szene)
   ```
+- Godot 4.7, `Godot.NET.Sdk` (.NET), `<Nullable>enable</Nullable>` in `PPRogueLite.csproj`. Fenster fest auf 1920×1080 in `project.godot` (`[display]`), Startszene `res://scenes/Hub.tscn` (`[application] run/main_scene`), globales Theme über `[gui] theme/custom`. Kein Autoload/Singleton-Mechanismus – Cross-Scene-State läuft ausschließlich über C#-`static`-Felder (siehe `PlayerCardCollection`).
+
+## Technischer Aufbau (für neue Sessions: hier zuerst lesen)
+
+Kompakte Referenz, damit eine neue Session ohne Gesprächsverlauf schnell versteht, wie der Code zusammenhängt – ergänzt die Ordnerstruktur oben um Verantwortlichkeiten und gelernte Godot-Fallstricke.
+
+**Namespaces** (alle unter `PPRogueLite`):
+- `PPRogueLite` (Root): Godot-Node-Scripts direkt unter `scenes/` – `Hub`, `Arena`, `Player`, `EnemyGoblin`, `FloatingText`, `CardView`, `DeckScreen`, `DeckStackView`, `Main` (Altlast).
+- `PPRogueLite.Character`: `AbilityScores` (Ability-Enum + Modifier-Berechnung), `PlayerCharacter`, `Enemy` – reine Datenklassen, kein Godot-Bezug.
+- `PPRogueLite.Combat`: `Dice` (statischer W20/WN-Roller, einziger RNG im Projekt) + Altlasten `CombatEngine`/`LogTag`/`AttackResult`/`AbilityCheckResult`/`RollStamp`.
+- `PPRogueLite.Cards`: `CardDefinition` (abstract: Id/DisplayName/CardType/Description/RequirementText/IsExhaust/`Play(CombatEngine)`) + 5 konkrete Karten, `CardCatalog` (baut Start-/Bench-Deck, `AllCardTypes()`), `Deck` (Draw-/Discard-Pile, Shuffle – kein Godot-Bezug).
+- `PPRogueLite.Meta`: `PlayerCardCollection` (static class, `DeckCards`/`BenchCards`-Listen).
+
+**Wichtig zu verstehen – `CardDefinition.Play(CombatEngine)` ist Altlast:** Das war der Auslöse-Mechanismus des alten rundenbasierten Kampfs. Die Echtzeit-Arena nutzt ihn **nicht** – `Player.TriggerAbility` verdrahtet das Verhalten jeder Karte stattdessen fest per `switch` über `CardDefinition.Id` (siehe Echtzeit-Arena-Abschnitt unten). Beim Ergänzen neuer Karten also nicht `Play()` implementieren in der Annahme, das reiche – der Switch in `Player.cs` muss den neuen Id-Fall auch behandeln.
+
+**Datenfluss Kartenbesitz → Run:** `PlayerCardCollection` ist eine statische Klasse (überlebt Szenenwechsel via CLR-Static-Feld-Lebensdauer, kein Autoload nötig). `DeckScreen` liest/schreibt sie direkt (×/+-Buttons verschieben Karteninstanzen zwischen `DeckCards`/`BenchCards`). `Player._Ready()` kopiert beim Arena-Start den aktuellen Stand von `DeckCards` in ein **laufeigenes** `new Deck(...)` – Deck-Änderungen wirken sich also erst auf den **nächsten** Run aus, nie auf einen laufenden.
+
+**Szenen/Node-Struktur** (Script liegt immer neben seiner `.tscn`, Godot-Konvention):
+- `Hub.tscn` (Startszene): `Control` mit 4 Buttons in einem Papier-Panel; `Hub.cs` verdrahtet nur die ersten beiden (`GetTree().ChangeSceneToFile("res://scenes/Arena.tscn"|"res://scenes/DeckScreen.tscn")`).
+- `Arena.tscn`: `Node2D`-Root (`Arena.cs` = Orchestrator) mit Kind-Node `Player` (Instanz von `Player.tscn`), `EnemySpawnTimer`, und `HUD` (`CanvasLayer`) mit `MarginContainer → VBoxContainer` (AbilityBar, HP/XP-Labels+Bars, SurvivalLabel, ReturnToHubButton) plus separatem `LevelUpLayer` (`MarginContainer`, initial leer, wird zur Laufzeit von `Arena.cs` mit dem 3-Spalten-Level-up-Screen befüllt und wieder geleert).
+- `Player.tscn`: `Node2D`, Script `Player.cs` (WASD-Bewegung, Fähigkeiten-Liste, XP/Level, kein Sprite – `_Draw()`).
+- `EnemyGoblin.tscn`: `Node2D`, Script `EnemyGoblin.cs` (verfolgt Spieler, greift bei Kontakt an, `_Draw()`).
+- `FloatingText.tscn`: `Node2D` mit `Label`-Kind, Script `FloatingText.cs` (Tween-Animation, self-destruct via `QueueFree`).
+- `DeckScreen.tscn`: zwei Spalten (Im Deck / Nicht im Deck), je ein `VBoxContainer` [HeaderLabel, PanelContainer→ScrollContainer→GridContainer] mit `CardView`-Instanzen.
+- `CardView.tscn`: wiederverwendbare Kartenansicht (Panel + Labels + ActionButton), genutzt in `DeckScreen` UND im Arena-Level-up-Screen.
+- `Main.tscn`/`Main.cs`: Altlast des alten rundenbasierten Kampfs, von keinem Menü mehr erreicht – siehe "Altlasten" unten, nicht ohne Rücksprache löschen.
+
+**Godot-C#-Muster/Learnings** (gegen echte Bugs erarbeitet – beim Weiterbauen beachten):
+- **Node-Lifecycle:** `_Ready()` feuert erst NACH `AddChild()` in den lebenden SceneTree, nicht direkt bei `PackedScene.Instantiate()`. Reihenfolge beim dynamischen Erzeugen immer: `Instantiate()` → Properties setzen → `AddChild()` → erst dann Methoden wie `Populate()` aufrufen, die auf in `_Ready()` gesetzte Felder zugreifen (hat einen echten NullReferenceException-Bug verursacht).
+- **Kein Drag & Drop:** `_CanDropData`/`_DropData` funktionierte im echten Editor nicht (vermutlich falsche Bubbling-Annahme). Verschieben/Interaktion läuft seitdem über explizite Buttons + Events (`ActionClicked`, `Clicked`).
+- **Kein Godot-Physik-Kollisionssystem:** bewusst vermieden (ungetestete Layer/Masken) – Nähe/Reichweite immer per `Vector2.DistanceTo()`-Handrechnung (`Player`/`EnemyGoblin`).
+- **Keine globale Pause** (`GetTree().Paused`): stattdessen manuelle `SetDisabled(bool)`-Flags auf `Player`/`EnemyGoblin` + `Timer.Stop()`, gesteuert über `Arena.SetWorldPaused()`.
+- **Kein Input-Map:** WASD wird direkt per `Input.IsPhysicalKeyPressed(Key.W/A/S/D)` abgefragt statt über `[input]`-Actions in `project.godot`.
+- **Gruppen statt Referenzlisten:** `AddToGroup("player"/"enemies")` + `GetTree().GetNodesInGroup(...)` für Player↔Enemy-Discovery.
+- **Async/Await für Bestätigungsdialoge:** `await ToSignal(button, Button.SignalName.Pressed)` pausiert eine Methode bis zum Klick – genutzt sowohl im alten Popup als auch im Level-up-"Weiter"-Flow.
+- **Tween-API:** `CreateTween().SetParallel(true).TweenProperty(node, "position:y", ziel, dauer)` für einfache Animationen (`FloatingText`), Sub-Properties per String-Pfad in snake_case (`"position:y"`, `"modulate:a"`).
+- **Theme:** eine globale Theme-Resource (`theme/game_theme.tres`) über `project.godot` `[gui] theme/custom`, mit benannten `theme_type_variation`-Varianten (z. B. `CardPanel`, `DeskLabel`, `CardActionButton`) statt Styling pro Node.
+- **Layout ohne natives "space-between":** `HBoxContainer` kennt das nicht – wird über leere `Control`-Spacer-Nodes mit `SizeFlags.Fill|Expand` zwischen fixen Spalten nachgebaut (siehe `Arena.OnAbilityGained`).
 
 ## Browser-Prototyp (bereits erstellt)
 
