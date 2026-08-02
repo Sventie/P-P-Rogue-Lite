@@ -1,5 +1,6 @@
 namespace PPRogueLite;
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -20,6 +21,7 @@ using PPRogueLite.Meta;
 public partial class DeckScreen : Control
 {
     private const int RequiredDeckSize = 10;
+    private const float CardWidth = 190f;
 
     private static readonly Color BadColor = new(0.611765f, 0.231373f, 0.231373f);
 
@@ -47,7 +49,32 @@ public partial class DeckScreen : Control
         _backButton = GetNode<Button>("MarginContainer/VBoxContainer/BackButton");
         _backButton.Pressed += OnBackPressed;
 
+        SetupResponsiveColumns(_deckGrid);
+        SetupResponsiveColumns(_benchGrid);
+
         RenderAll();
+    }
+
+    /// <summary>
+    /// GridContainer hat keine "so viele Spalten wie passen"-Option, daher
+    /// wird die Spaltenzahl aus der verfügbaren Breite berechnet und bei
+    /// jeder Größenänderung (z. B. Fenster-Resize) neu bestimmt.
+    /// </summary>
+    private static void SetupResponsiveColumns(GridContainer grid)
+    {
+        grid.Resized += () => ApplyColumnCount(grid);
+        ApplyColumnCount(grid);
+    }
+
+    private static void ApplyColumnCount(GridContainer grid)
+    {
+        float separation = grid.GetThemeConstant("h_separation");
+        int columns = Math.Max(1, (int)((grid.Size.X + separation) / (CardWidth + separation)));
+
+        if (grid.Columns != columns)
+        {
+            grid.Columns = columns;
+        }
     }
 
     private void MoveOneCard(string cardId, List<CardDefinition> from, List<CardDefinition> to)
