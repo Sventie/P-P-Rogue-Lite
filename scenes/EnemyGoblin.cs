@@ -42,7 +42,10 @@ public partial class EnemyGoblin : Node2D
             Name = "Höhlengoblin",
             MaxHp = 12,
             Hp = 12,
-            ArmorClass = 13,
+            // Test-Balance-Wert: bewusst niedriger als die kanonische RK 13
+            // aus dem Prototyp/Deck-Screen, damit sich XP/Level-ups in der
+            // Arena beim Testen schneller sammeln lassen.
+            ArmorClass = 8,
             AttackBonus = 4,
             DamageDie = 6,
             DamageBonus = 2,

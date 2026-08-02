@@ -24,7 +24,7 @@ public partial class Player : Node2D
     private const float Speed = 220f;
     private const float MeleeRange = 90f;
     private const float Radius = 16f;
-    private const int XpPerLevel = 5;
+    private const int XpPerLevel = 2; // Test-Balance-Wert fuer schnelleres Testen (1 XP pro Kill)
     private const float ParadeBonus = 4f;
     private const float ParadeDuration = 2f;
 

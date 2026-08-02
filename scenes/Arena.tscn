@@ -53,12 +53,12 @@ show_percentage = false
 [node name="XpLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"DeskLabel"
-text = "XP: 0 / 5"
+text = "XP: 0 / 2"
 
 [node name="XpBar" type="ProgressBar" parent="HUD/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(220, 10)
 layout_mode = 2
-max_value = 5.0
+max_value = 2.0
 value = 0.0
 show_percentage = false
 
@@ -73,7 +73,7 @@ size_flags_horizontal = 0
 visible = false
 text = "Zurück zum Hub"
 
-[node name="LevelUpLayer" type="CenterContainer" parent="HUD"]
+[node name="LevelUpLayer" type="MarginContainer" parent="HUD"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -81,3 +81,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme_override_constants/margin_left = 60
+theme_override_constants/margin_top = 60
+theme_override_constants/margin_right = 60
+theme_override_constants/margin_bottom = 60

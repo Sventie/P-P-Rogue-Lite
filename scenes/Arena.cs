@@ -225,15 +225,27 @@ public partial class Arena : Node2D
         SetWorldPaused(true);
         UpdateAbilityLabel(card);
 
-        var row = new HBoxContainer();
+        // HBoxContainer kennt kein "space-between" - volle Bildschirmbreite
+        // wird ueber Fill/Expand-Spacer zwischen den drei fixen Spalten
+        // erreicht (LevelUpLayer ist ein MarginContainer, spannt also die
+        // volle Breite auf, statt wie vorher nur den Inhalt zu zentrieren).
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+            SizeFlagsVertical = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+        };
         row.AddThemeConstantOverride("separation", 24);
 
-        var deckColumn = new VBoxContainer();
+        var deckColumn = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         deckColumn.AddThemeConstantOverride("separation", 12);
         deckColumn.AddChild(BuildPileOverview("Nachziehstapel", _player.CountInDrawPile));
         deckColumn.AddChild(BuildPileOverview("Bereits gezogen", _player.CountEquipped));
 
-        var cardColumn = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        var cardColumn = new VBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
         cardColumn.AddThemeConstantOverride("separation", 12);
 
         var cardView = _cardViewScene.Instantiate<CardView>();
@@ -245,9 +257,14 @@ public partial class Arena : Node2D
         cardColumn.AddChild(cardView);
         cardColumn.AddChild(continueButton);
 
+        var sheetColumn = BuildCharacterSheet();
+        sheetColumn.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+
         row.AddChild(deckColumn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand });
         row.AddChild(cardColumn);
-        row.AddChild(BuildCharacterSheet());
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand });
+        row.AddChild(sheetColumn);
 
         _levelUpLayer.AddChild(row);
         cardView.Populate(card);
@@ -259,7 +276,8 @@ public partial class Arena : Node2D
     }
 
     /// <summary>
-    /// Übersicht über einen Kartenstapel: alle bekannten Kartentypen mit
+    /// Übersicht über einen Kartenstapel: eine schrumpfende Stapel-Grafik
+    /// (<see cref="DeckStackView"/>) plus alle bekannten Kartentypen mit
     /// Stückzahl, ausgegraut bei 0. Zeigt bewusst nur Zusammenfassungen pro
     /// Typ, nicht die tatsächliche (gemischte) Reihenfolge des Nachziehstapels.
     /// </summary>
@@ -268,10 +286,22 @@ public partial class Arena : Node2D
         var panel = new PanelContainer { ThemeTypeVariation = "CardPanel" };
 
         var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 4);
+        vbox.AddThemeConstantOverride("separation", 6);
 
         var header = new Label { Text = title, ThemeTypeVariation = "CardTypeLabel" };
         vbox.AddChild(header);
+
+        int total = 0;
+        foreach (var card in CardCatalog.AllCardTypes())
+        {
+            total += countLookup(card.Id);
+        }
+
+        vbox.AddChild(new DeckStackView
+        {
+            Count = total,
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+        });
 
         foreach (var card in CardCatalog.AllCardTypes())
         {
