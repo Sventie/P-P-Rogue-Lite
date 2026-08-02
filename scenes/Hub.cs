@@ -3,10 +3,10 @@ namespace PPRogueLite;
 using Godot;
 
 /// <summary>
-/// Menü-Hub zwischen den Dungeon-Runs. "Dungeon betreten" startet den
-/// Testkampf (scenes/Main.tscn), "Karten managen" öffnet den Deck-Screen.
-/// Die übrigen Buttons sind reine UI-Struktur ohne Funktion - siehe
-/// CLAUDE.md für die geplante Funktionalität.
+/// Menü-Hub zwischen den Dungeon-Runs. "Dungeon betreten" startet die
+/// Echtzeit-Arena (scenes/Arena.tscn), "Karten managen" öffnet den
+/// Deck-Screen. Die übrigen Buttons sind reine UI-Struktur ohne Funktion -
+/// siehe CLAUDE.md für die geplante Funktionalität.
 /// </summary>
 public partial class Hub : Control
 {
@@ -23,7 +23,7 @@ public partial class Hub : Control
 
     private void OnEnterDungeonPressed()
     {
-        GetTree().ChangeSceneToFile("res://scenes/Main.tscn");
+        GetTree().ChangeSceneToFile("res://scenes/Arena.tscn");
     }
 
     private void OnManageCardsPressed()
