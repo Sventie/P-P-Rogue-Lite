@@ -54,4 +54,14 @@ public static class CardCatalog
 
         return bench;
     }
+
+    /// <summary>Ein Exemplar jedes bekannten Kartentyps - für Übersichten, die alle Typen auflisten sollen (auch mit 0 Stück).</summary>
+    public static IReadOnlyList<CardDefinition> AllCardTypes() => new List<CardDefinition>
+    {
+        new HiebCard(),
+        new WuchtschlagCard(),
+        new ParadeCard(),
+        new FinteCard(),
+        new AtemHolenCard(),
+    };
 }

@@ -50,6 +50,18 @@ max_value = 24.0
 value = 24.0
 show_percentage = false
 
+[node name="XpLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_type_variation = &"DeskLabel"
+text = "XP: 0 / 5"
+
+[node name="XpBar" type="ProgressBar" parent="HUD/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(220, 10)
+layout_mode = 2
+max_value = 5.0
+value = 0.0
+show_percentage = false
+
 [node name="SurvivalLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"DeskLabel"

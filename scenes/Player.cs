@@ -66,6 +66,10 @@ public partial class Player : Node2D
         .GroupBy(card => card.Id)
         .Select(group => group.First());
 
+    public int Xp => _xp;
+
+    public int XpToNextLevel => XpPerLevel;
+
     private readonly List<ActiveAbility> _abilities = new();
     private Deck _runDeck = null!;
     private PackedScene _floatingTextScene = null!;
@@ -288,6 +292,12 @@ public partial class Player : Node2D
             NewAbilityTypeUnlocked?.Invoke(card);
         }
     }
+
+    /// <summary>Wie oft eine Karte dieses Typs bereits gezogen und ausgerüstet wurde.</summary>
+    public int CountEquipped(string cardId) => _abilities.Count(ability => ability.Card.Id == cardId);
+
+    /// <summary>Wie viele Karten dieses Typs noch im laufeigenen Nachziehstapel liegen.</summary>
+    public int CountInDrawPile(string cardId) => _runDeck.DrawPile.Count(card => card.Id == cardId);
 
     /// <summary>
     /// Fortschritt (0..1) bis zum nächsten Auslösen der ersten aktiven

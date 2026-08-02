@@ -1,14 +1,17 @@
 namespace PPRogueLite;
 
+using System;
 using System.Collections.Generic;
 using Godot;
 using PPRogueLite.Cards;
+using PPRogueLite.Character;
 
 /// <summary>
 /// Echtzeit-Arena: löst den alten rundenbasierten Testkampf (Main.tscn) ab.
-/// Spawnt fortlaufend Gegner, zeigt HP/Überlebenszeit/Fähigkeiten-Leiste mit
-/// Cooldown-Balken. Beim Level-up pausiert die Runde (Spieler/Gegner/Spawner
-/// deaktiviert) und zeigt die neu gezogene Karte, bis der Spieler per
+/// Spawnt fortlaufend Gegner, zeigt HP/XP/Überlebenszeit/Fähigkeiten-Leiste
+/// mit Cooldown-Balken. Beim Level-up pausiert die Runde (Spieler/Gegner/
+/// Spawner deaktiviert) und zeigt die neu gezogene Karte zusammen mit einer
+/// Deck-/Ablage-Übersicht und dem Charakterbogen, bis der Spieler per
 /// "Weiter"-Button bestätigt. Schickt bei Niederlage zurück in den Hub.
 /// </summary>
 public partial class Arena : Node2D
@@ -19,18 +22,31 @@ public partial class Arena : Node2D
     private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
     private static readonly Color CooldownFillColor = new(0.690196f, 0.552941f, 0.239216f);
 
+    private static readonly (Ability Ability, string Label)[] StatOrder =
+    {
+        (Ability.Strength, "Stärke"),
+        (Ability.Dexterity, "Geschick"),
+        (Ability.Constitution, "Konstit."),
+        (Ability.Intelligence, "Intell."),
+        (Ability.Wisdom, "Weisheit"),
+        (Ability.Charisma, "Charisma"),
+    };
+
     private PackedScene _enemyScene = null!;
     private PackedScene _cardViewScene = null!;
     private Player _player = null!;
     private Timer _spawnTimer = null!;
     private Label _hpLabel = null!;
     private ProgressBar _hpBar = null!;
+    private Label _xpLabel = null!;
+    private ProgressBar _xpBar = null!;
     private Label _survivalLabel = null!;
     private Button _returnToHubButton = null!;
     private Control _levelUpLayer = null!;
     private HBoxContainer _abilityBar = null!;
 
     private readonly Dictionary<string, ProgressBar> _cooldownBars = new();
+    private readonly Dictionary<string, Label> _abilityNameLabels = new();
 
     private double _survivalSeconds;
     private bool _gameOver;
@@ -51,6 +67,16 @@ public partial class Arena : Node2D
         _abilityBar = GetNode<HBoxContainer>("HUD/MarginContainer/VBoxContainer/AbilityBar");
         _hpLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/HpLabel");
         _hpBar = GetNode<ProgressBar>("HUD/MarginContainer/VBoxContainer/HpBar");
+        _xpLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/XpLabel");
+        _xpBar = GetNode<ProgressBar>("HUD/MarginContainer/VBoxContainer/XpBar");
+        _xpBar.AddThemeStyleboxOverride("fill", new StyleBoxFlat
+        {
+            BgColor = CooldownFillColor,
+            CornerRadiusTopLeft = 2,
+            CornerRadiusTopRight = 2,
+            CornerRadiusBottomRight = 2,
+            CornerRadiusBottomLeft = 2,
+        });
         _survivalLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/SurvivalLabel");
         _returnToHubButton = GetNode<Button>("HUD/MarginContainer/VBoxContainer/ReturnToHubButton");
         _returnToHubButton.Visible = false;
@@ -79,6 +105,7 @@ public partial class Arena : Node2D
         _survivalLabel.Text = $"Überlebt: {(int)_survivalSeconds}s";
 
         UpdateHpDisplay();
+        UpdateXpDisplay();
         UpdateCooldownBars();
 
         if (_player.Character.IsDefeated)
@@ -104,6 +131,13 @@ public partial class Arena : Node2D
             CornerRadiusBottomLeft = 2,
         };
         _hpBar.AddThemeStyleboxOverride("fill", fill);
+    }
+
+    private void UpdateXpDisplay()
+    {
+        _xpLabel.Text = $"XP: {_player.Xp} / {_player.XpToNextLevel}";
+        _xpBar.MaxValue = _player.XpToNextLevel;
+        _xpBar.Value = _player.Xp;
     }
 
     private void UpdateCooldownBars()
@@ -147,11 +181,7 @@ public partial class Arena : Node2D
         var vbox = new VBoxContainer();
         vbox.AddThemeConstantOverride("separation", 4);
 
-        var label = new Label
-        {
-            Text = card.DisplayName,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
+        var label = new Label { HorizontalAlignment = HorizontalAlignment.Center };
 
         var bar = new ProgressBar
         {
@@ -175,32 +205,166 @@ public partial class Arena : Node2D
         _abilityBar.AddChild(panel);
 
         _cooldownBars[card.Id] = bar;
+        _abilityNameLabels[card.Id] = label;
+        UpdateAbilityLabel(card);
+    }
+
+    private void UpdateAbilityLabel(CardDefinition card)
+    {
+        if (!_abilityNameLabels.TryGetValue(card.Id, out var label))
+        {
+            return;
+        }
+
+        int count = _player.CountEquipped(card.Id);
+        label.Text = count > 1 ? $"{card.DisplayName}  ×{count}" : card.DisplayName;
     }
 
     private async void OnAbilityGained(CardDefinition card)
     {
         SetWorldPaused(true);
+        UpdateAbilityLabel(card);
 
-        var wrapper = new VBoxContainer();
-        wrapper.AddThemeConstantOverride("separation", 12);
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 24);
+
+        var deckColumn = new VBoxContainer();
+        deckColumn.AddThemeConstantOverride("separation", 12);
+        deckColumn.AddChild(BuildPileOverview("Nachziehstapel", _player.CountInDrawPile));
+        deckColumn.AddChild(BuildPileOverview("Bereits gezogen", _player.CountEquipped));
+
+        var cardColumn = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        cardColumn.AddThemeConstantOverride("separation", 12);
 
         var cardView = _cardViewScene.Instantiate<CardView>();
-
         var continueButton = new Button
         {
             Text = "Weiter",
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
         };
+        cardColumn.AddChild(cardView);
+        cardColumn.AddChild(continueButton);
 
-        wrapper.AddChild(cardView);
-        wrapper.AddChild(continueButton);
-        _levelUpLayer.AddChild(wrapper);
+        row.AddChild(deckColumn);
+        row.AddChild(cardColumn);
+        row.AddChild(BuildCharacterSheet());
+
+        _levelUpLayer.AddChild(row);
         cardView.Populate(card);
 
         await ToSignal(continueButton, Button.SignalName.Pressed);
 
-        wrapper.QueueFree();
+        row.QueueFree();
         SetWorldPaused(false);
+    }
+
+    /// <summary>
+    /// Übersicht über einen Kartenstapel: alle bekannten Kartentypen mit
+    /// Stückzahl, ausgegraut bei 0. Zeigt bewusst nur Zusammenfassungen pro
+    /// Typ, nicht die tatsächliche (gemischte) Reihenfolge des Nachziehstapels.
+    /// </summary>
+    private static Control BuildPileOverview(string title, Func<string, int> countLookup)
+    {
+        var panel = new PanelContainer { ThemeTypeVariation = "CardPanel" };
+
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 4);
+
+        var header = new Label { Text = title, ThemeTypeVariation = "CardTypeLabel" };
+        vbox.AddChild(header);
+
+        foreach (var card in CardCatalog.AllCardTypes())
+        {
+            int count = countLookup(card.Id);
+            var row = new Label { Text = $"{card.DisplayName} – {count}×" };
+            if (count == 0)
+            {
+                row.Modulate = new Color(1f, 1f, 1f, 0.4f);
+            }
+
+            vbox.AddChild(row);
+        }
+
+        panel.AddChild(vbox);
+        return panel;
+    }
+
+    private Control BuildCharacterSheet()
+    {
+        var panel = new PanelContainer
+        {
+            ThemeTypeVariation = "CardPanel",
+            CustomMinimumSize = new Vector2(220, 0),
+        };
+
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 6);
+
+        var portrait = new PanelContainer
+        {
+            CustomMinimumSize = new Vector2(96, 96),
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+        };
+        portrait.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0f, 0f, 0f, 0.08f),
+            BorderWidthLeft = 1,
+            BorderWidthTop = 1,
+            BorderWidthRight = 1,
+            BorderWidthBottom = 1,
+            BorderColor = new Color(0f, 0f, 0f, 0.3f),
+            CornerRadiusTopLeft = 48,
+            CornerRadiusTopRight = 48,
+            CornerRadiusBottomRight = 48,
+            CornerRadiusBottomLeft = 48,
+        });
+        portrait.AddChild(new Label
+        {
+            Text = "Bild",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+            SizeFlagsVertical = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+        });
+
+        var character = _player.Character;
+        vbox.AddChild(portrait);
+        vbox.AddChild(new Label { Text = character.Name });
+        vbox.AddChild(new Label { Text = character.ClassName });
+        vbox.AddChild(BuildStatLine("Rüstungsklasse", character.BaseArmorClass, _player.EffectiveArmorClass));
+
+        foreach (var (ability, label) in StatOrder)
+        {
+            int score = character.Stats.Score(ability);
+            vbox.AddChild(BuildStatLine(label, score, score));
+        }
+
+        panel.AddChild(vbox);
+        return panel;
+    }
+
+    /// <summary>
+    /// Eine Statzeile im Format "Name: Effektivwert (Basiswert Delta)" - das
+    /// Delta ist aktuell fast immer 0 (nur die Rüstungsklasse kann sich durch
+    /// Parade kurzzeitig erhöhen), das Format ist aber bereits vorbereitet
+    /// für künftige Boni durch Ereignisse/Ausrüstung (grün) bzw. Mali (rot).
+    /// </summary>
+    private static Label BuildStatLine(string label, int baseValue, int effectiveValue)
+    {
+        int delta = effectiveValue - baseValue;
+        string deltaText = delta >= 0 ? $"+{delta}" : delta.ToString();
+
+        var line = new Label { Text = $"{label}: {effectiveValue} ({baseValue} {deltaText})" };
+        if (delta > 0)
+        {
+            line.AddThemeColorOverride("font_color", HpGoodColor);
+        }
+        else if (delta < 0)
+        {
+            line.AddThemeColorOverride("font_color", HpBadColor);
+        }
+
+        return line;
     }
 
     private void SetWorldPaused(bool paused)
