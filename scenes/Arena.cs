@@ -5,18 +5,25 @@ using System.Collections.Generic;
 using Godot;
 using PPRogueLite.Cards;
 using PPRogueLite.Character;
+using PPRogueLite.Meta;
 
 /// <summary>
 /// Echtzeit-Arena: löst den alten rundenbasierten Testkampf (Main.tscn) ab.
-/// Spawnt fortlaufend Gegner, zeigt HP/XP/Überlebenszeit/Fähigkeiten-Leiste
-/// mit Cooldown-Balken. Beim Level-up pausiert die Runde (Spieler/Gegner/
-/// Spawner deaktiviert) und zeigt die neu gezogene Karte zusammen mit einer
-/// Deck-/Ablage-Übersicht und dem Charakterbogen, bis der Spieler per
-/// "Weiter"-Button bestätigt. Schickt bei Niederlage zurück in den Hub.
+/// Eine Stage besteht aus 10 Wellen (Welle N spawnt N Gegner); die nächste
+/// Welle startet erst, wenn die aktuelle vollständig besiegt ist (siehe
+/// CheckWaveCleared). HP/XP/Welle/Überlebenszeit/Fähigkeiten-Leiste mit
+/// Cooldown-Balken werden im HUD angezeigt. Beim Level-up pausiert die
+/// Runde (Spieler/Gegner/Wellenwechsel deaktiviert) und zeigt die neu
+/// gezogene Karte zusammen mit einer Deck-/Ablage-Übersicht und dem
+/// Charakterbogen, bis der Spieler per "Weiter"-Button bestätigt. Nach
+/// Niederlage ODER nach Abschluss der letzten Welle (Sieg, gibt Gold als
+/// Belohnung) erscheint der "Zurück zum Hub"-Button.
 /// </summary>
 public partial class Arena : Node2D
 {
     private const float SpawnMargin = 40f;
+    private const int TotalWaves = 10;
+    private const int GoldReward = 25; // Test-Balance-Wert für die Stage-Abschluss-Belohnung
 
     private static readonly Color HpGoodColor = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
@@ -35,12 +42,14 @@ public partial class Arena : Node2D
     private PackedScene _enemyScene = null!;
     private PackedScene _cardViewScene = null!;
     private Player _player = null!;
-    private Timer _spawnTimer = null!;
+    private Timer _waveTransitionTimer = null!;
     private Label _hpLabel = null!;
     private ProgressBar _hpBar = null!;
     private Label _xpLabel = null!;
     private ProgressBar _xpBar = null!;
+    private Label _waveLabel = null!;
     private Label _survivalLabel = null!;
+    private Label _outcomeLabel = null!;
     private Button _returnToHubButton = null!;
     private Control _levelUpLayer = null!;
     private HBoxContainer _abilityBar = null!;
@@ -49,6 +58,8 @@ public partial class Arena : Node2D
     private readonly Dictionary<string, Label> _abilityNameLabels = new();
 
     private double _survivalSeconds;
+    private int _currentWave;
+    private bool _waveTransitionPending;
     private bool _gameOver;
     private bool _paused;
 
@@ -61,8 +72,8 @@ public partial class Arena : Node2D
         _player.AbilityGained += OnAbilityGained;
         _player.NewAbilityTypeUnlocked += AddAbilityBadge;
 
-        _spawnTimer = GetNode<Timer>("EnemySpawnTimer");
-        _spawnTimer.Timeout += SpawnEnemy;
+        _waveTransitionTimer = GetNode<Timer>("WaveTransitionTimer");
+        _waveTransitionTimer.Timeout += OnWaveTransitionTimeout;
 
         _abilityBar = GetNode<HBoxContainer>("HUD/MarginContainer/VBoxContainer/AbilityBar");
         _hpLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/HpLabel");
@@ -77,7 +88,9 @@ public partial class Arena : Node2D
             CornerRadiusBottomRight = 2,
             CornerRadiusBottomLeft = 2,
         });
+        _waveLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/WaveLabel");
         _survivalLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/SurvivalLabel");
+        _outcomeLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/OutcomeLabel");
         _returnToHubButton = GetNode<Button>("HUD/MarginContainer/VBoxContainer/ReturnToHubButton");
         _returnToHubButton.Visible = false;
         _returnToHubButton.Pressed += () => GetTree().ChangeSceneToFile("res://scenes/Hub.tscn");
@@ -92,6 +105,8 @@ public partial class Arena : Node2D
         {
             AddAbilityBadge(card);
         }
+
+        BeginWave(1);
     }
 
     public override void _Process(double delta)
@@ -110,8 +125,11 @@ public partial class Arena : Node2D
 
         if (_player.Character.IsDefeated)
         {
-            EndRun();
+            FinishRun("Niederlage");
+            return;
         }
+
+        CheckWaveCleared();
     }
 
     private void UpdateHpDisplay()
@@ -158,6 +176,63 @@ public partial class Arena : Node2D
         var enemy = _enemyScene.Instantiate<EnemyGoblin>();
         AddChild(enemy);
         enemy.Position = RandomEdgePosition();
+    }
+
+    /// <summary>Startet Welle N: spawnt N Gegner auf einmal (Welle 1 = 1, Welle 2 = 2, ...).</summary>
+    private void BeginWave(int waveNumber)
+    {
+        _currentWave = waveNumber;
+        UpdateWaveDisplay();
+
+        for (int i = 0; i < waveNumber; i++)
+        {
+            SpawnEnemy();
+        }
+    }
+
+    private void UpdateWaveDisplay()
+    {
+        _waveLabel.Text = $"Welle: {_currentWave} / {TotalWaves}";
+    }
+
+    /// <summary>
+    /// Erkennt per Poll (kein Event von EnemyGoblin), ob die aktuelle Welle
+    /// besiegt ist - dann entweder Stage abschließen (letzte Welle) oder
+    /// nach einer kurzen Pause (WaveTransitionTimer) die nächste Welle
+    /// starten.
+    /// </summary>
+    private void CheckWaveCleared()
+    {
+        if (_waveTransitionPending || _currentWave == 0)
+        {
+            return;
+        }
+
+        if (GetTree().GetNodesInGroup("enemies").Count > 0)
+        {
+            return;
+        }
+
+        if (_currentWave >= TotalWaves)
+        {
+            CompleteStage();
+            return;
+        }
+
+        _waveTransitionPending = true;
+        _waveTransitionTimer.Start();
+    }
+
+    private void OnWaveTransitionTimeout()
+    {
+        _waveTransitionPending = false;
+        BeginWave(_currentWave + 1);
+    }
+
+    private void CompleteStage()
+    {
+        PlayerWallet.Gold += GoldReward;
+        FinishRun($"Stage abgeschlossen! +{GoldReward} Gold");
     }
 
     private Vector2 RandomEdgePosition()
@@ -410,21 +485,32 @@ public partial class Arena : Node2D
             }
         }
 
+        // Der Timer wird nur für die kurze Pause zwischen zwei Wellen
+        // gebraucht - ihn bei jeder Level-up-Pause blind zu stoppen/starten
+        // würde sonst faelschlich einen Wellenwechsel anstossen, obwohl die
+        // aktuelle Welle noch gar nicht besiegt ist.
+        if (!_waveTransitionPending)
+        {
+            return;
+        }
+
         if (paused)
         {
-            _spawnTimer.Stop();
+            _waveTransitionTimer.Stop();
         }
         else
         {
-            _spawnTimer.Start();
+            _waveTransitionTimer.Start();
         }
     }
 
-    private void EndRun()
+    private void FinishRun(string outcomeText)
     {
         _gameOver = true;
-        _spawnTimer.Stop();
+        _waveTransitionTimer.Stop();
         _player.SetDisabled(true);
+        _outcomeLabel.Text = outcomeText;
+        _outcomeLabel.Visible = true;
         _returnToHubButton.Visible = true;
     }
 }

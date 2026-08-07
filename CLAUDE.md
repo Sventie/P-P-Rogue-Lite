@@ -139,13 +139,15 @@ Neue Szenen `scenes/Arena.tscn` + `scenes/Player.tscn` + `scenes/EnemyGoblin.tsc
   - **Links:** zwei Kartenstapel-Übersichten ("Nachziehstapel" / "Bereits gezogen"), jeweils mit einer schrumpfenden Stapel-Grafik (`scenes/DeckStackView.cs`, eigener `Control` mit `_Draw()` – zeichnet eine Karten-Rückseite pro noch vorhandener Karte, leicht versetzt, wird also sichtbar kleiner) plus allen 5 bekannten Kartentypen mit Stückzahl (`CardCatalog.AllCardTypes()`), bei 0 ausgegraut. Zeigt bewusst nur Summen pro Typ, nicht die tatsächliche (gemischte) Reihenfolge des Nachziehstapels. "Bereits gezogen" entspricht den aktuell ausgerüsteten Fähigkeiten (`Player.CountEquipped`) – im Echtzeit-Modus gibt es keinen klassischen Ablagestapel, gezogene Karten werden ja dauerhaft ausgerüstet statt abgelegt.
   - **Mitte:** die neu gezogene Karte (`CardView`) + "Weiter"-Button, erst nach Klick (`await ToSignal(...)`) geht's weiter.
   - **Rechts:** Charakterbogen (Bild-Platzhalter, Name, Klasse, Rüstungsklasse, sechs Attribute) im Format "Wert (Basiswert Delta)" – Delta aktuell fast immer +0 (nur die Rüstungsklasse kann sich durch Parade kurzzeitig erhöhen), Format aber bereits vorbereitet für künftige Boni (grün) / Mali (rot) durch Ereignisse/Ausrüstung.
-- **Gegner** (`EnemyGoblin.cs`): läuft direkt auf die Spielerposition zu (kein Pathfinding), greift bei Kontakt automatisch an (verdeckter Wurf, gleiche Werte wie bisher bis auf die RK: Höhlengoblin RK **8** [Test-Balance-Wert, bewusst niedriger als die kanonische RK 13 aus Prototyp/Deck-Screen, damit Treffer/XP beim Testen der Arena schneller kommen], 12 HP, Angriffsbonus +4, 1W6+2), zeigt einen kleinen Lebensbalken über sich (per `_Draw()`, aktualisiert bei jedem Treffer über `QueueRedraw()`). `Arena.cs` spawnt alle 1,5 s einen neuen Gegner an einem zufälligen Punkt am Bildschirmrand – **keine Schwierigkeitssteigerung über die Zeit**, das ist ein bewusst offener erster Wurf.
+- **Gegner** (`EnemyGoblin.cs`): läuft direkt auf die Spielerposition zu (kein Pathfinding), greift bei Kontakt automatisch an (verdeckter Wurf, gleiche Werte wie bisher bis auf die RK: Höhlengoblin RK **8** [Test-Balance-Wert, bewusst niedriger als die kanonische RK 13 aus Prototyp/Deck-Screen, damit Treffer/XP beim Testen der Arena schneller kommen], 12 HP, Angriffsbonus +4, 1W6+2), zeigt einen kleinen Lebensbalken über sich (per `_Draw()`, aktualisiert bei jedem Treffer über `QueueRedraw()`).
+- **Wellen/Stage-Struktur** (`Arena.BeginWave`/`CheckWaveCleared`, Umsetzung von GitHub-Issue #2): eine Stage besteht aus 10 Wellen, Welle N spawnt N Gegner auf einmal (Welle 1 = 1, Welle 2 = 2, ... Welle 10 = 10 – Test-Balance-Wert). Die nächste Welle startet erst, wenn die aktuelle vollständig besiegt ist (`CheckWaveCleared` pollt pro Frame `GetTree().GetNodesInGroup("enemies").Count == 0`, kein Event von `EnemyGoblin` nötig), dann kurze Pause über `WaveTransitionTimer` (`Arena.tscn`, one-shot, 1,5 s) bevor die nächste Welle spawnt. Aktuelle Welle wird im HUD angezeigt (`WaveLabel`, "Welle: N / 10"). Nach Welle 10 endet die Stage als **Sieg** (siehe HUD unten) – vorher lief die Arena endlos ohne Sieg-Bedingung, das ist jetzt abgelöst.
 - **Feedback statt Popup:** `FloatingText.cs` (kurzer, aufsteigender/verblassender Text) zeigt Schaden/"Verfehlt"/Heilung/Buff-Namen direkt am Ort des Geschehens – ersetzt das alte Log-/Popup-System vollständig.
-- **HUD** (`Arena.tscn`, `CanvasLayer`): Fähigkeiten-Leiste, HP-Balken/-Text, XP-Balken/-Text, Überlebenszeit, "Zurück zum Hub" (erscheint erst bei Niederlage). Kein explizites Sieg-Ziel – der Run läuft, bis der Spieler stirbt (klassische Vampire-Survivors-Struktur).
+- **HUD** (`Arena.tscn`, `CanvasLayer`): Fähigkeiten-Leiste, HP-Balken/-Text, XP-Balken/-Text, Wellen-Anzeige, Überlebenszeit, Ergebnis-Text (`OutcomeLabel`, "Niederlage" oder "Stage abgeschlossen! +N Gold"), "Zurück zum Hub" (erscheint sowohl bei Niederlage als auch nach Stage-Sieg – `Arena.FinishRun` deckt beide Fälle ab).
+- **Gold-Belohnung:** `PPRogueLite.Meta.PlayerWallet` (neue static class, gleiches Muster wie `PlayerCardCollection`) hält `Gold` prozessweit. Bei Stage-Abschluss gibt's einen festen Betrag (`Arena.GoldReward = 25`, Test-Balance-Wert) – noch nirgends ausgegeben (folgt mit Card Shop/Issue #4), noch keine Gold-Anzeige im Hub.
 
-**Bewusste Vereinfachungen dieser ersten Version** (nicht vergessen, wenn's ans Polishing geht): keine Godot-Physik/Kollisionslayer (nur Distanzchecks, Gegner können sich gegenseitig überlappen), keine Schwierigkeits-/Spawnrate-Steigerung über die Zeit, keine Auswahl zwischen mehreren gezogenen Karten beim Level-up, kein Sprite/Animationen (nur gezeichnete Kreise/Formen), Cooldown-Balken bei doppelten Kartentypen zeigt nur die erste Instanz.
+**Bewusste Vereinfachungen dieser ersten Version** (nicht vergessen, wenn's ans Polishing geht): keine Godot-Physik/Kollisionslayer (nur Distanzchecks, Gegner können sich gegenseitig überlappen), keine Auswahl zwischen mehreren gezogenen Karten beim Level-up, kein Sprite/Animationen (nur gezeichnete Kreise/Formen), Cooldown-Balken bei doppelten Kartentypen zeigt nur die erste Instanz. Nach Stage-Abschluss geht's direkt zurück in den Hub – noch keine Verkettung mehrerer Stages zu einem Dungeon (folgt mit Issue #3).
 
-Vom Nutzer in Godot getestet, funktioniert (Bewegung, Angriffe, Ability-Leiste, Cooldowns, XP/Level-up-Pause, Deck-Stapel-Grafik, Game-Over-Flow) – iterativ über mehrere Runden verfeinert (siehe Balance-Werte oben: Goblin-RK 8, 2 XP/Level).
+Bewegung/Angriffe/Ability-Leiste/Cooldowns/XP/Level-up-Pause/Deck-Stapel-Grafik/Game-Over-Flow vom Nutzer in Godot getestet, funktioniert (iterativ über mehrere Runden verfeinert, siehe Balance-Werte oben: Goblin-RK 8, 2 XP/Level). Das Wellen-/Stage-System (Issue #2) ist neu und **noch nicht in der echten Godot-Umgebung gegengeprüft**.
 
 ## Altlasten: alter rundenbasierter Kampf (nicht mehr erreichbar, noch nicht gelöscht)
 
@@ -171,17 +173,26 @@ Vom Nutzer in Godot getestet, funktioniert (×/+-Buttons, Stückzahl-Anzeige, 10
 
 ## Offene Punkte / nächste Schritte
 
-Bekannte offene Themen für die Weiterentwicklung, ungefähr in Reihenfolge sinnvoller Angriffsreihenfolge (nichts davon ist aktuell in Arbeit):
+**GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#13). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer):
+
+1. ~~**#2 Add Stage logic**~~ – **umgesetzt** (siehe Echtzeit-Arena-Abschnitt oben: 10 Wellen pro Stage, Welle N = N Gegner, Gold-Belohnung bei Abschluss). Noch nicht vom Nutzer in Godot gegengeprüft.
+2. **#3 Add Dungeon logic** – mehrere Stages hintereinander mit Tavern-Zwischenstopp, vorzeitig beenden. Baut direkt auf #2 auf; aktuell geht's nach Stage-Abschluss noch direkt zurück in den Hub statt in eine Kette weiterer Stages.
+3. **#10 Add Dungeonpath** – verzweigte Node-Routenauswahl statt linearer Stage-Kette aus #3, bewusst direkt danach, um die lineare Verkettung nicht erst zu bauen und dann zu verwerfen.
+4. **#9 Add different enemies** (ranged/tank/mage/thief) – sinnvoll, sobald es echte Stage-/Pfad-Vielfalt zum Befüllen gibt.
+5. **#11 Add boss fight in stage 10** – braucht Stage 10 aus #10 und die Gegner-Designsprache aus #9.
+6. **#12 add new cards** (Angriffs-/Verteidigungs-/Fähigkeits-/Modifikator-Karten) – Karteninhalt vertiefen.
+7. **#4 Add Card Shop** – braucht Gold-Belohnungen (jetzt aus #2 vorhanden, `PlayerWallet`) und einen volleren Kartenpool aus #12.
+8. **#13 Add new characters** – Charakterinhalt, Voraussetzung für Gruppe & Charakter-Shop.
+9. **#5 Add Group** – Party bis 4 Charaktere, braucht #13.
+10. **#7 Add character death** – überschneidet sich stark mit #5 (Permadeath für Nicht-Hauptcharaktere), am besten zusammen mit #5 umsetzen statt als getrennten Schritt.
+11. **#6 Add Character Shop** – braucht #13, #5 und das Shop-Muster aus #4.
+12. **#8 Add stat overview after stage & dungeon** – Reporting-Capstone, braucht Gruppe (#5) und Stage/Dungeon-Struktur (#2/#3) als Datengrundlage.
+
+Sonstige offene Punkte, unabhängig vom Issue-Backlog:
 
 - **Deck-Erschöpfung:** Ist das Deck leer (nach ca. Level 11 bei 10 Karten), liefert `LevelUp()` einfach keine neue Fähigkeit mehr (stiller No-op, `drawn.Count == 0` → return). Bewusst nicht behoben, kein akuter Bedarf – möglicher Ansatz später: Nachziehstapel aus ausgerüsteten Karten neu mischen, oder bei XP-Überschuss einfach nichts mehr passieren lassen.
 - Auswahl zwischen mehreren gezogenen Karten beim Level-up (aktuell wird automatisch die eine gezogene Karte ausgerüstet).
-- Schwierigkeitssteigerung über die Zeit in der Arena (aktuell konstante Spawnrate von 1,5s, keine Steigerung).
-- Balancing von Karten-Synergien und Progressionskurve (XP-pro-Level, Fähigkeiten-Cooldowns, Gegner-Spawnrate – aktuell grobe Testwerte, bewusst leicht gestellt zum schnellen Iterieren, noch nicht auf "echtes" Balancing hin geprüft).
+- Balancing von Karten-Synergien und Progressionskurve (XP-pro-Level, Fähigkeiten-Cooldowns, Wellengröße, Gold-Belohnung – aktuell grobe Testwerte, bewusst leicht gestellt zum schnellen Iterieren, noch nicht auf "echtes" Balancing hin geprüft).
 - Echte Sprites/Animationen statt gezeichneter Kreise/Formen.
 - Godot-Physik/Kollisionslayer für die Arena einführen, falls die reinen Distanzchecks nicht mehr reichen (z. B. für Gegner-Ausweichverhalten untereinander).
-- Dungeon-Generierungsalgorithmus (Layout, Encounter-Verteilung) – bisher nur eine einzelne Arena, keine Struktur mehrerer Räume/Encounter.
-- Konkretes Reliquien/Bonus-System ausarbeiten (Zwei-Schienen-Modell, siehe Kampfsystem-Abschnitt oben).
-- Konkrete Klassen über den Krieger hinaus definieren.
-- "Gruppe managen" und "Mit Loot entkommen" im Hub mit Funktion füllen (siehe Meta-Ebene-Planung oben).
-- Kartenshop / Kartenpacks / Freischaltungen (Meta-Progression).
 - Entscheidung, ob/wann die Altlasten (alter rundenbasierter Kampf, siehe eigener Abschnitt) endgültig gelöscht werden.
