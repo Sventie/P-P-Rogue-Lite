@@ -56,8 +56,8 @@ Ursprünglich war der Kampf rundenbasiert (Karte klicken → Würfel-Popup → E
     /combat      (Würfel-Resolution: Dice; CombatEngine/LogTag/AttackResult/RollStamp/AbilityCheckResult gehören zum alten rundenbasierten Kampf, siehe Altlasten)
     /cards       (Kartendeck-Logik: CardDefinition + Karten, CardCatalog, Deck – jetzt Grundlage der Echtzeit-Fähigkeiten)
     /dungeon     (noch leer – künftige prozedurale Generierung)
-    /meta        (PlayerCardCollection – Kartenbesitz über Szenenwechsel/Runs hinweg)
-  /scenes        (Hub/Arena/Player/EnemyGoblin/FloatingText/DeckScreen/CardView/Main + jeweiliges .cs als UI-/Ablauf-Glue, Godot-Konvention: Script liegt bei seiner Szene)
+    /meta        (PlayerCardCollection/PlayerWallet/DungeonRun – Kartenbesitz/Gold/laufender Dungeon-Fortschritt über Szenenwechsel/Runs hinweg)
+  /scenes        (Hub/Arena/Player/EnemyGoblin/FloatingText/DeckScreen/CardView/Camp/Main + jeweiliges .cs als UI-/Ablauf-Glue, Godot-Konvention: Script liegt bei seiner Szene)
   ```
 - Godot 4.7, `Godot.NET.Sdk` (.NET), `<Nullable>enable</Nullable>` in `PPRogueLite.csproj`. Fenster fest auf 1920×1080 in `project.godot` (`[display]`), Startszene `res://scenes/Hub.tscn` (`[application] run/main_scene`), globales Theme über `[gui] theme/custom`. Kein Autoload/Singleton-Mechanismus – Cross-Scene-State läuft ausschließlich über C#-`static`-Felder (siehe `PlayerCardCollection`).
 
@@ -66,24 +66,27 @@ Ursprünglich war der Kampf rundenbasiert (Karte klicken → Würfel-Popup → E
 Kompakte Referenz, damit eine neue Session ohne Gesprächsverlauf schnell versteht, wie der Code zusammenhängt – ergänzt die Ordnerstruktur oben um Verantwortlichkeiten und gelernte Godot-Fallstricke.
 
 **Namespaces** (alle unter `PPRogueLite`):
-- `PPRogueLite` (Root): Godot-Node-Scripts direkt unter `scenes/` – `Hub`, `Arena`, `Player`, `EnemyGoblin`, `FloatingText`, `CardView`, `DeckScreen`, `DeckStackView`, `Main` (Altlast).
+- `PPRogueLite` (Root): Godot-Node-Scripts direkt unter `scenes/` – `Hub`, `Arena`, `Player`, `EnemyGoblin`, `FloatingText`, `CardView`, `DeckScreen`, `DeckStackView`, `Camp`, `Main` (Altlast).
 - `PPRogueLite.Character`: `AbilityScores` (Ability-Enum + Modifier-Berechnung), `PlayerCharacter`, `Enemy` – reine Datenklassen, kein Godot-Bezug.
 - `PPRogueLite.Combat`: `Dice` (statischer W20/WN-Roller, einziger RNG im Projekt) + Altlasten `CombatEngine`/`LogTag`/`AttackResult`/`AbilityCheckResult`/`RollStamp`.
-- `PPRogueLite.Cards`: `CardDefinition` (abstract: Id/DisplayName/CardType/Description/RequirementText/IsExhaust/`Play(CombatEngine)`) + 5 konkrete Karten, `CardCatalog` (baut Start-/Bench-Deck, `AllCardTypes()`), `Deck` (Draw-/Discard-Pile, Shuffle – kein Godot-Bezug).
-- `PPRogueLite.Meta`: `PlayerCardCollection` (static class, `DeckCards`/`BenchCards`-Listen).
+- `PPRogueLite.Cards`: `CardDefinition` (abstract: Id/DisplayName/CardType/Description/RequirementText/IsExhaust/`Play(CombatEngine)`) + 5 konkrete Karten, `CardCatalog` (baut Start-/Bench-Deck, `AllCardTypes()`), `Deck` (Draw-/Discard-Pile, Shuffle, optional ohne Mischen via `shuffleOnCreate: false` – kein Godot-Bezug).
+- `PPRogueLite.Meta`: `PlayerCardCollection` (static class, `DeckCards`/`BenchCards`-Listen), `PlayerWallet` (static class, `Gold`), `DungeonRun` (static class, Fortschritt eines laufenden Dungeons über Stages hinweg – siehe Dungeon-Struktur-Abschnitt unten).
 
 **Wichtig zu verstehen – `CardDefinition.Play(CombatEngine)` ist Altlast:** Das war der Auslöse-Mechanismus des alten rundenbasierten Kampfs. Die Echtzeit-Arena nutzt ihn **nicht** – `Player.TriggerAbility` verdrahtet das Verhalten jeder Karte stattdessen fest per `switch` über `CardDefinition.Id` (siehe Echtzeit-Arena-Abschnitt unten). Beim Ergänzen neuer Karten also nicht `Play()` implementieren in der Annahme, das reiche – der Switch in `Player.cs` muss den neuen Id-Fall auch behandeln.
 
-**Datenfluss Kartenbesitz → Run:** `PlayerCardCollection` ist eine statische Klasse (überlebt Szenenwechsel via CLR-Static-Feld-Lebensdauer, kein Autoload nötig). `DeckScreen` liest/schreibt sie direkt (×/+-Buttons verschieben Karteninstanzen zwischen `DeckCards`/`BenchCards`). `Player._Ready()` kopiert beim Arena-Start den aktuellen Stand von `DeckCards` in ein **laufeigenes** `new Deck(...)` – Deck-Änderungen wirken sich also erst auf den **nächsten** Run aus, nie auf einen laufenden.
+**Datenfluss Kartenbesitz → Run:** `PlayerCardCollection` ist eine statische Klasse (überlebt Szenenwechsel via CLR-Static-Feld-Lebensdauer, kein Autoload nötig). `DeckScreen` liest/schreibt sie direkt (×/+-Buttons verschieben Karteninstanzen zwischen `DeckCards`/`BenchCards`). `Player._Ready()` kopiert beim **ersten** Arena-Start eines Dungeons den aktuellen Stand von `DeckCards` in ein **laufeigenes** `new Deck(...)` – Deck-Änderungen wirken sich also erst auf den **nächsten** Dungeon aus, nie auf einen laufenden.
+
+**Datenfluss Charakter-Fortschritt → nächste Stage:** Godot behält beim Szenenwechsel keinen Node-State (die alte `Player`-Instanz wird beim Verlassen der Arena zerstört). Damit HP/Level/XP/ausgerüstete Fähigkeiten/Nachziehstapel über mehrere Stages *desselben* Dungeons erhalten bleiben, schreibt `Player.SaveProgress()` sie vor jedem Szenenwechsel in `DungeonRun` (aufgerufen von `Arena.CompleteStage()`); `Player._Ready()` liest sie beim Start der nächsten Stage über `DungeonRun.HasProgress` wieder ein, statt einen frischen Charakter zu bauen. Siehe Dungeon-Struktur-Abschnitt unten für den vollen Ablauf.
 
 **Szenen/Node-Struktur** (Script liegt immer neben seiner `.tscn`, Godot-Konvention):
-- `Hub.tscn` (Startszene): `Control` mit 4 Buttons in einem Papier-Panel; `Hub.cs` verdrahtet nur die ersten beiden (`GetTree().ChangeSceneToFile("res://scenes/Arena.tscn"|"res://scenes/DeckScreen.tscn")`).
-- `Arena.tscn`: `Node2D`-Root (`Arena.cs` = Orchestrator) mit Kind-Node `Player` (Instanz von `Player.tscn`), `EnemySpawnTimer`, und `HUD` (`CanvasLayer`) mit `MarginContainer → VBoxContainer` (AbilityBar, HP/XP-Labels+Bars, SurvivalLabel, ReturnToHubButton) plus separatem `LevelUpLayer` (`MarginContainer`, initial leer, wird zur Laufzeit von `Arena.cs` mit dem 3-Spalten-Level-up-Screen befüllt und wieder geleert).
+- `Hub.tscn` (Startszene, "Taverne"): `Control` mit 4 Buttons in einem Papier-Panel + Gold-Anzeige; `Hub.cs` verdrahtet nur die ersten beiden (`GetTree().ChangeSceneToFile("res://scenes/Arena.tscn"|"res://scenes/DeckScreen.tscn")`, "Dungeon betreten" ruft zusätzlich `DungeonRun.Start()`).
+- `Arena.tscn`: `Node2D`-Root (`Arena.cs` = Orchestrator) mit Kind-Node `Player` (Instanz von `Player.tscn`), `WaveTransitionTimer`, und `HUD` (`CanvasLayer`) mit `MarginContainer → VBoxContainer` (AbilityBar, HP/XP-Labels+Bars, StageLabel, WaveLabel, SurvivalLabel, OutcomeLabel, ContinueButton) plus separatem `LevelUpLayer` (`MarginContainer`, initial leer, wird zur Laufzeit von `Arena.cs` mit dem 3-Spalten-Level-up-Screen befüllt und wieder geleert).
 - `Player.tscn`: `Node2D`, Script `Player.cs` (WASD-Bewegung, Fähigkeiten-Liste, XP/Level, kein Sprite – `_Draw()`).
 - `EnemyGoblin.tscn`: `Node2D`, Script `EnemyGoblin.cs` (verfolgt Spieler, greift bei Kontakt an, `_Draw()`).
 - `FloatingText.tscn`: `Node2D` mit `Label`-Kind, Script `FloatingText.cs` (Tween-Animation, self-destruct via `QueueFree`).
 - `DeckScreen.tscn`: zwei Spalten (Im Deck / Nicht im Deck), je ein `VBoxContainer` [HeaderLabel, PanelContainer→ScrollContainer→GridContainer] mit `CardView`-Instanzen.
 - `CardView.tscn`: wiederverwendbare Kartenansicht (Panel + Labels + ActionButton), genutzt in `DeckScreen` UND im Arena-Level-up-Screen.
+- `Camp.tscn` ("Lager"): `Control`, gleiche Papier-Menü-Struktur wie `Hub.tscn` (Titel/Untertitel/Gold-Anzeige + zentriertes Menüpanel), zwei Buttons ("Nächste Stage betreten" / "Dungeon beenden"). Zwischenstopp zwischen zwei Stages *innerhalb* eines Dungeons – nicht zu verwechseln mit dem Hub/der Taverne, die nur *zwischen* zwei Dungeons erreichbar ist.
 - `Main.tscn`/`Main.cs`: Altlast des alten rundenbasierten Kampfs, von keinem Menü mehr erreicht – siehe "Altlasten" unten, nicht ohne Rücksprache löschen.
 
 **Godot-C#-Muster/Learnings** (gegen echte Bugs erarbeitet – beim Weiterbauen beachten):
@@ -109,21 +112,21 @@ Ein spielbarer HTML/JS-Prototyp existiert bereits (Datei: `dice-and-cards-protot
 ## Godot-Projekt (bereits aufgesetzt)
 
 Das Godot-4-Projekt liegt im Repo-Root (`project.godot`, `PPRogueLite.csproj`). Ursprünglich wurde hier die 1:1 aus dem Browser-Prototyp übertragene **rundenbasierte** Kampflogik umgesetzt und vom Nutzer erfolgreich in Godot 4.7 getestet (`scenes/Main.tscn`/`Main.cs`, `CombatEngine`, Karten-Popup-System mit "Weiter"-Button) – dieser Teil ist durch den Pivot zu Echtzeit inzwischen **abgelöst** (siehe "Altlasten" unten), war aber die Basis für zwei bis heute genutzte Dinge:
-- **Theme** `theme/game_theme.tres`: Papier-&-Schreibtisch-Farbpalette (dunkler Hintergrund, Papier-Panels, Messing-Buttons, grün/rote HP-Balken), vom Nutzer getestet und für gut befunden. Wird von **allen** aktuellen Szenen (Hub, Arena, DeckScreen) weiterverwendet. Bewusst ohne die Google-Fonts (Special Elite/Crimson Text) aus dem Prototyp – Systemfont, Fonts können später ergänzt werden.
+- **Theme** `theme/game_theme.tres`: Papier-&-Schreibtisch-Farbpalette (dunkler Hintergrund, Papier-Panels, Messing-Buttons, grün/rote HP-Balken), vom Nutzer getestet und für gut befunden. Wird von **allen** aktuellen Szenen (Hub, Arena, DeckScreen, Camp) weiterverwendet. Bewusst ohne die Google-Fonts (Special Elite/Crimson Text) aus dem Prototyp – Systemfont, Fonts können später ergänzt werden.
 - **Popup-Muster** (Ergebnis zentriert zeigen, erst nach "Weiter"-Klick weiter, kein Timer): Das Prinzip aus dem alten Kampf-Popup lebt im Level-up-Screen der Echtzeit-Arena weiter (siehe dort).
 
 ## Hub / Menüstruktur (bereits aufgesetzt)
 
-Das Spiel startet jetzt in `scenes/Hub.tscn` (Startszene laut `project.godot`) statt direkt im Kampf – der Hub ist die "Taverne" aus der Meta-Ebene-Planung. Vier Buttons in einem zentrierten Papier-Menüpanel:
+Das Spiel startet jetzt in `scenes/Hub.tscn` (Startszene laut `project.godot`) statt direkt im Kampf – der Hub ist die "Taverne" aus der Meta-Ebene-Planung und **nur zwischen zwei Dungeons erreichbar** (Zwischenstopps *innerhalb* eines laufenden Dungeons laufen über das Lager, siehe Dungeon-Struktur-Abschnitt unten). Vier Buttons in einem zentrierten Papier-Menüpanel plus Gold-Anzeige darüber (`GoldLabel`, liest `PlayerWallet.Gold`):
 
-- **"Dungeon betreten"** – **funktional**: wechselt per `GetTree().ChangeSceneToFile()` zu `scenes/Arena.tscn` und startet damit die Echtzeit-Arena (siehe eigener Abschnitt unten). Zeigte früher auf `scenes/Main.tscn` (alter rundenbasierter Kampf) – siehe Pivot oben.
-- **"Karten managen"** – **funktional**: wechselt zu `scenes/DeckScreen.tscn` (siehe eigener Abschnitt unten).
+- **"Dungeon betreten"** – **funktional**: ruft `DungeonRun.Start()` auf (setzt Stage 1, verwirft alten Fortschritt) und wechselt per `GetTree().ChangeSceneToFile()` zu `scenes/Arena.tscn`, startet damit einen neuen Dungeon in der Echtzeit-Arena (siehe eigener Abschnitt unten). Zeigte früher auf `scenes/Main.tscn` (alter rundenbasierter Kampf) – siehe Pivot oben.
+- **"Karten managen"** – **funktional**: wechselt zu `scenes/DeckScreen.tscn` (siehe eigener Abschnitt unten). Nur hier im Hub möglich, nicht im Lager (siehe Dungeon-Struktur-Abschnitt) – Deck-Bearbeitung ist bewusst nur zwischen Dungeons erlaubt.
 - **"Gruppe managen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: alle besessenen Charaktere als Charakterkarten; Anklicken einer Karte öffnet das Charakterbogen-Sheet (Bezug zur Roster-/Gruppen-Planung in der Meta-Ebene oben).
 - **"Mit Loot entkommen"** – *noch ohne Funktion (UI-Platzhalter)*. Geplant: Weg, einen Run kontrolliert/sicher zu beenden (Loot behalten statt Risiko eines Wipes).
 
-Bei Niederlage in der Arena (siehe unten) erscheint ein **"Zurück zum Hub"**-Button und wechselt per Szenenwechsel zurück zu `scenes/Hub.tscn`. Jeder erneute Einstieg über "Dungeon betreten" baut den Run komplett neu auf (frischer Charakter/Deck-Ziehung/Gegner-Spawns).
+Zurück zum Hub geht's über `Arena.ContinueButton` (bei Niederlage oder nach der letzten Stage eines Dungeons) oder über das Lager (`Camp.EndDungeonButton`, Dungeon vorzeitig beenden). Jeder erneute Einstieg über "Dungeon betreten" baut den Run komplett neu auf (frischer Charakter/Deck-Ziehung/Gegner-Spawns).
 
-Vom Nutzer in Godot getestet, funktioniert.
+Vom Nutzer in Godot getestet, funktioniert (Stand vor Issue #3 – die neue Gold-Anzeige und `DungeonRun.Start()`-Anbindung sind neu und noch nicht gegengeprüft).
 
 ## Echtzeit-Arena (bereits aufgesetzt, löst den alten Main.tscn-Kampf ab)
 
@@ -142,12 +145,27 @@ Neue Szenen `scenes/Arena.tscn` + `scenes/Player.tscn` + `scenes/EnemyGoblin.tsc
 - **Gegner** (`EnemyGoblin.cs`): läuft direkt auf die Spielerposition zu (kein Pathfinding), greift bei Kontakt automatisch an (verdeckter Wurf, gleiche Werte wie bisher bis auf die RK: Höhlengoblin RK **8** [Test-Balance-Wert, bewusst niedriger als die kanonische RK 13 aus Prototyp/Deck-Screen, damit Treffer/XP beim Testen der Arena schneller kommen], 12 HP, Angriffsbonus +4, 1W6+2), zeigt einen kleinen Lebensbalken über sich (per `_Draw()`, aktualisiert bei jedem Treffer über `QueueRedraw()`).
 - **Wellen/Stage-Struktur** (`Arena.BeginWave`/`CheckWaveCleared`, Umsetzung von GitHub-Issue #2): eine Stage besteht aus 10 Wellen, Welle N spawnt N Gegner auf einmal (Welle 1 = 1, Welle 2 = 2, ... Welle 10 = 10 – Test-Balance-Wert). Die nächste Welle startet erst, wenn die aktuelle vollständig besiegt ist (`CheckWaveCleared` pollt pro Frame `GetTree().GetNodesInGroup("enemies").Count == 0`, kein Event von `EnemyGoblin` nötig), dann kurze Pause über `WaveTransitionTimer` (`Arena.tscn`, one-shot, 1,5 s) bevor die nächste Welle spawnt. Aktuelle Welle wird im HUD angezeigt (`WaveLabel`, "Welle: N / 10"). Nach Welle 10 endet die Stage als **Sieg** (siehe HUD unten) – vorher lief die Arena endlos ohne Sieg-Bedingung, das ist jetzt abgelöst.
 - **Feedback statt Popup:** `FloatingText.cs` (kurzer, aufsteigender/verblassender Text) zeigt Schaden/"Verfehlt"/Heilung/Buff-Namen direkt am Ort des Geschehens – ersetzt das alte Log-/Popup-System vollständig.
-- **HUD** (`Arena.tscn`, `CanvasLayer`): Fähigkeiten-Leiste, HP-Balken/-Text, XP-Balken/-Text, Wellen-Anzeige, Überlebenszeit, Ergebnis-Text (`OutcomeLabel`, "Niederlage" oder "Stage abgeschlossen! +N Gold"), "Zurück zum Hub" (erscheint sowohl bei Niederlage als auch nach Stage-Sieg – `Arena.FinishRun` deckt beide Fälle ab).
-- **Gold-Belohnung:** `PPRogueLite.Meta.PlayerWallet` (neue static class, gleiches Muster wie `PlayerCardCollection`) hält `Gold` prozessweit. Bei Stage-Abschluss gibt's einen festen Betrag (`Arena.GoldReward = 25`, Test-Balance-Wert) – noch nirgends ausgegeben (folgt mit Card Shop/Issue #4), noch keine Gold-Anzeige im Hub.
+- **HUD** (`Arena.tscn`, `CanvasLayer`): Fähigkeiten-Leiste, HP-Balken/-Text, XP-Balken/-Text, Stage-Anzeige, Wellen-Anzeige, Überlebenszeit, Ergebnis-Text (`OutcomeLabel`, "Niederlage"/"Stage N von 5 abgeschlossen! +N Gold"/"Dungeon abgeschlossen! +N Gold") und ein Button mit dynamischem Text/Ziel (`ContinueButton`, gesteuert über `Arena.FinishRun(text, buttonText, targetScene)` – "Weiter zum Lager" → `Camp.tscn` bei einer Nicht-Schluss-Stage, sonst "Zurück zur Taverne" → `Hub.tscn`).
+- **Gold-Belohnung:** `PPRogueLite.Meta.PlayerWallet` (static class, gleiches Muster wie `PlayerCardCollection`) hält `Gold` prozessweit. Bei Stage-Abschluss gibt's einen festen Betrag (`Arena.GoldReward = 25`, Test-Balance-Wert) – noch nirgends ausgegeben (folgt mit Card Shop/Issue #4). Wird im Hub und im Lager angezeigt.
 
-**Bewusste Vereinfachungen dieser ersten Version** (nicht vergessen, wenn's ans Polishing geht): keine Godot-Physik/Kollisionslayer (nur Distanzchecks, Gegner können sich gegenseitig überlappen), keine Auswahl zwischen mehreren gezogenen Karten beim Level-up, kein Sprite/Animationen (nur gezeichnete Kreise/Formen), Cooldown-Balken bei doppelten Kartentypen zeigt nur die erste Instanz. Nach Stage-Abschluss geht's direkt zurück in den Hub – noch keine Verkettung mehrerer Stages zu einem Dungeon (folgt mit Issue #3).
+**Bewusste Vereinfachungen dieser ersten Version** (nicht vergessen, wenn's ans Polishing geht): keine Godot-Physik/Kollisionslayer (nur Distanzchecks, Gegner können sich gegenseitig überlappen), keine Auswahl zwischen mehreren gezogenen Karten beim Level-up, kein Sprite/Animationen (nur gezeichnete Kreise/Formen), Cooldown-Balken bei doppelten Kartentypen zeigt nur die erste Instanz. Ausgerüstete Fähigkeiten starten bei jeder neuen Stage mit vollem Cooldown neu (kein Versuch, den exakten Timer-Stand über den Szenenwechsel zu retten).
 
-Bewegung/Angriffe/Ability-Leiste/Cooldowns/XP/Level-up-Pause/Deck-Stapel-Grafik/Game-Over-Flow vom Nutzer in Godot getestet, funktioniert (iterativ über mehrere Runden verfeinert, siehe Balance-Werte oben: Goblin-RK 8, 2 XP/Level). Das Wellen-/Stage-System (Issue #2) ist neu und **noch nicht in der echten Godot-Umgebung gegengeprüft**.
+Bewegung/Angriffe/Ability-Leiste/Cooldowns/XP/Level-up-Pause/Deck-Stapel-Grafik/Game-Over-Flow vom Nutzer in Godot getestet, funktioniert (iterativ über mehrere Runden verfeinert, siehe Balance-Werte oben: Goblin-RK 8, 2 XP/Level). Das Wellen-/Stage-System (Issue #2) und die Mehrfach-Stage-Anbindung (Issue #3, siehe Dungeon-Struktur-Abschnitt unten) sind neu und **noch nicht in der echten Godot-Umgebung gegengeprüft**.
+
+## Dungeon-Struktur (bereits aufgesetzt, Issue #3)
+
+Ein Dungeon besteht aus `DungeonRun.TotalStages` = 5 Stages hintereinander (jede Stage = ein voller Arena-Durchlauf mit 10 Wellen, siehe oben). Neuer Zustand `PPRogueLite.Meta.DungeonRun` (static class, gleiches Muster wie `PlayerCardCollection`/`PlayerWallet`) hält den Fortschritt über die Szenenwechsel Arena ↔ Lager hinweg fest, da eine neue Stage eine neue `Arena`-Szene (und damit eine neue `Player`-Instanz) bedeutet:
+
+- **Start eines Dungeons:** `Hub.OnEnterDungeonPressed` ruft `DungeonRun.Start()` (setzt `CurrentStage = 1`, `HasProgress = false`) und wechselt zu `Arena.tscn`. `Player._Ready()` sieht `HasProgress == false` und baut wie bisher einen frischen Charakter (volles HP, Level 1, nur Hieb ausgerüstet, frisches Deck aus `PlayerCardCollection.DeckCards`).
+- **Stage-Abschluss, Dungeon geht weiter** (`Arena.CompleteStage`, `DungeonRun.CurrentStage < TotalStages`): Gold gutschreiben, `Player.SaveProgress()` schreibt HP/XP/Level/Nachziehstapel/ausgerüstete Fähigkeiten in `DungeonRun` (setzt `HasProgress = true`), `DungeonRun.AdvanceStage()` erhöht `CurrentStage`, dann `Arena.FinishRun(...)` mit Button "Weiter zum Lager" → `Camp.tscn`.
+- **Lager** (`Camp.tscn`/`Camp.cs`, "Lager"): zeigt "Stage N von 5 abgeschlossen" und den aktuellen Gold-Stand. Zwei Buttons: **"Nächste Stage betreten"** → `Arena.tscn` (neue `Player`-Instanz liest `DungeonRun.HasProgress == true` und stellt HP/XP/Level/Deck/Fähigkeiten wieder her, statt frisch zu starten – `Deck`-Konstruktor mit `shuffleOnCreate: false`, damit der gespeicherte Nachziehstapel nicht neu gemischt wird); **"Dungeon beenden"** → `DungeonRun.End()` + zurück zu `Hub.tscn` (bereits verdientes Gold bleibt erhalten, da es schon pro Stage direkt in `PlayerWallet` landet – "beenden" verliert nichts, es bricht nur zukünftige Stages ab).
+- **Letzte Stage abgeschlossen** (`CurrentStage == TotalStages`): `DungeonRun.End()`, `Arena.FinishRun(...)` mit Text "Dungeon abgeschlossen!" und Button "Zurück zur Taverne" → `Hub.tscn` direkt (kein Umweg über das Lager für die letzte Stage).
+- **Niederlage:** beendet den Dungeon immer (`DungeonRun.End()`), unabhängig davon, welche Stage gerade lief – zurück zur Taverne. Kein Fortschritt aus der verlorenen Stage wird gespeichert (kein `SaveProgress()`-Aufruf).
+- **Absicherung für direkte Tests:** Wird `Arena.tscn` in Godot direkt gestartet (z. B. F6) statt über den Hub, ist `DungeonRun.CurrentStage` noch 0 – `Arena._Ready()` ruft in diesem Fall selbst `DungeonRun.Start()` auf, damit Stage-Anzeige/Lager-Texte trotzdem stimmen.
+
+**Bewusste Vereinfachung:** Keine Heilung zwischen Stages – Schaden aus einer Stage bleibt bis zum Dungeon-Ende bestehen (höheres Risiko, klassischeres Rogue-lite-Gefühl). Falls sich das beim Testen zu hart anfühlt, ist das leicht zu ändern (z. B. `Character.Heal(...)` beim Lager-Eintritt).
+
+Noch nicht in der echten Godot-Umgebung getestet.
 
 ## Altlasten: alter rundenbasierter Kampf (nicht mehr erreichbar, noch nicht gelöscht)
 
@@ -176,7 +194,7 @@ Vom Nutzer in Godot getestet, funktioniert (×/+-Buttons, Stückzahl-Anzeige, 10
 **GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#13). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer):
 
 1. ~~**#2 Add Stage logic**~~ – **umgesetzt** (siehe Echtzeit-Arena-Abschnitt oben: 10 Wellen pro Stage, Welle N = N Gegner, Gold-Belohnung bei Abschluss). Noch nicht vom Nutzer in Godot gegengeprüft.
-2. **#3 Add Dungeon logic** – mehrere Stages hintereinander mit Tavern-Zwischenstopp, vorzeitig beenden. Baut direkt auf #2 auf; aktuell geht's nach Stage-Abschluss noch direkt zurück in den Hub statt in eine Kette weiterer Stages.
+2. ~~**#3 Add Dungeon logic**~~ – **umgesetzt** (siehe Dungeon-Struktur-Abschnitt oben: 5 Stages pro Dungeon, neues Lager `Camp.tscn` als Zwischenstopp *innerhalb* eines Dungeons, Taverne/Hub nur noch *zwischen* Dungeons, Charakter-Fortschritt über `DungeonRun` erhalten). Noch nicht vom Nutzer in Godot gegengeprüft.
 3. **#10 Add Dungeonpath** – verzweigte Node-Routenauswahl statt linearer Stage-Kette aus #3, bewusst direkt danach, um die lineare Verkettung nicht erst zu bauen und dann zu verwerfen.
 4. **#9 Add different enemies** (ranged/tank/mage/thief) – sinnvoll, sobald es echte Stage-/Pfad-Vielfalt zum Befüllen gibt.
 5. **#11 Add boss fight in stage 10** – braucht Stage 10 aus #10 und die Gegner-Designsprache aus #9.

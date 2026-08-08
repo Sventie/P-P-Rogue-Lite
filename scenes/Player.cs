@@ -103,10 +103,44 @@ public partial class Player : Node2D
             BaseArmorClass = 15,
         };
 
-        _runDeck = new Deck(PlayerCardCollection.DeckCards);
-        EquipAbility(new HiebCard(), announce: false);
+        if (DungeonRun.HasProgress)
+        {
+            // Fortsetzung eines laufenden Dungeons (Stage 2+): gespeicherten
+            // Fortschritt aus der vorherigen Stage übernehmen statt frisch
+            // zu starten (siehe DungeonRun/SaveProgress).
+            Character.Hp = DungeonRun.SavedHp;
+            _xp = DungeonRun.SavedXp;
+            _level = DungeonRun.SavedLevel;
+            _runDeck = new Deck(DungeonRun.SavedDrawPile, shuffleOnCreate: false);
+
+            foreach (var card in DungeonRun.SavedEquippedCards)
+            {
+                EquipAbility(card, announce: false);
+            }
+        }
+        else
+        {
+            _runDeck = new Deck(PlayerCardCollection.DeckCards);
+            EquipAbility(new HiebCard(), announce: false);
+        }
 
         QueueRedraw();
+    }
+
+    /// <summary>
+    /// Schreibt den aktuellen Fortschritt in DungeonRun, damit die nächste
+    /// Stage desselben Dungeons (neue Arena-Szene, neue Player-Instanz)
+    /// daran anknüpfen kann. Wird von Arena.CompleteStage aufgerufen, bevor
+    /// in Lager/Hub gewechselt wird.
+    /// </summary>
+    public void SaveProgress()
+    {
+        DungeonRun.SaveProgress(
+            Character.Hp,
+            _xp,
+            _level,
+            new List<CardDefinition>(_runDeck.DrawPile),
+            _abilities.Select(ability => ability.Card).ToList());
     }
 
     public override void _Draw()

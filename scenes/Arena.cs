@@ -11,13 +11,16 @@ using PPRogueLite.Meta;
 /// Echtzeit-Arena: löst den alten rundenbasierten Testkampf (Main.tscn) ab.
 /// Eine Stage besteht aus 10 Wellen (Welle N spawnt N Gegner); die nächste
 /// Welle startet erst, wenn die aktuelle vollständig besiegt ist (siehe
-/// CheckWaveCleared). HP/XP/Welle/Überlebenszeit/Fähigkeiten-Leiste mit
-/// Cooldown-Balken werden im HUD angezeigt. Beim Level-up pausiert die
+/// CheckWaveCleared). HP/XP/Stage/Welle/Überlebenszeit/Fähigkeiten-Leiste
+/// mit Cooldown-Balken werden im HUD angezeigt. Beim Level-up pausiert die
 /// Runde (Spieler/Gegner/Wellenwechsel deaktiviert) und zeigt die neu
 /// gezogene Karte zusammen mit einer Deck-/Ablage-Übersicht und dem
-/// Charakterbogen, bis der Spieler per "Weiter"-Button bestätigt. Nach
-/// Niederlage ODER nach Abschluss der letzten Welle (Sieg, gibt Gold als
-/// Belohnung) erscheint der "Zurück zum Hub"-Button.
+/// Charakterbogen, bis der Spieler per "Weiter"-Button bestätigt.
+///
+/// Eine Stage ist eine von mehreren Stationen eines Dungeons (siehe
+/// DungeonRun): nach Sieg in einer Nicht-Schluss-Stage geht's ins Lager
+/// (Camp.tscn) für die nächste Stage, nach der letzten Stage oder bei
+/// Niederlage zurück in die Taverne (Hub.tscn).
 /// </summary>
 public partial class Arena : Node2D
 {
@@ -47,10 +50,11 @@ public partial class Arena : Node2D
     private ProgressBar _hpBar = null!;
     private Label _xpLabel = null!;
     private ProgressBar _xpBar = null!;
+    private Label _stageLabel = null!;
     private Label _waveLabel = null!;
     private Label _survivalLabel = null!;
     private Label _outcomeLabel = null!;
-    private Button _returnToHubButton = null!;
+    private Button _continueButton = null!;
     private Control _levelUpLayer = null!;
     private HBoxContainer _abilityBar = null!;
 
@@ -62,9 +66,19 @@ public partial class Arena : Node2D
     private bool _waveTransitionPending;
     private bool _gameOver;
     private bool _paused;
+    private string _pendingTargetScene = "res://scenes/Hub.tscn";
 
     public override void _Ready()
     {
+        // Ermöglicht auch einen direkten Testlauf der Arena-Szene in Godot
+        // (z. B. F6), ohne vorher über den Hub "Dungeon betreten" geklickt
+        // zu haben - ohne diese Absicherung wäre CurrentStage sonst 0 und
+        // Stage-/Lager-Anzeige würden falsche Werte zeigen.
+        if (DungeonRun.CurrentStage == 0)
+        {
+            DungeonRun.Start();
+        }
+
         _enemyScene = GD.Load<PackedScene>("res://scenes/EnemyGoblin.tscn");
         _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
 
@@ -88,12 +102,14 @@ public partial class Arena : Node2D
             CornerRadiusBottomRight = 2,
             CornerRadiusBottomLeft = 2,
         });
+        _stageLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/StageLabel");
+        _stageLabel.Text = $"Stage: {DungeonRun.CurrentStage} / {DungeonRun.TotalStages}";
         _waveLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/WaveLabel");
         _survivalLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/SurvivalLabel");
         _outcomeLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/OutcomeLabel");
-        _returnToHubButton = GetNode<Button>("HUD/MarginContainer/VBoxContainer/ReturnToHubButton");
-        _returnToHubButton.Visible = false;
-        _returnToHubButton.Pressed += () => GetTree().ChangeSceneToFile("res://scenes/Hub.tscn");
+        _continueButton = GetNode<Button>("HUD/MarginContainer/VBoxContainer/ContinueButton");
+        _continueButton.Visible = false;
+        _continueButton.Pressed += () => GetTree().ChangeSceneToFile(_pendingTargetScene);
 
         _levelUpLayer = GetNode<Control>("HUD/LevelUpLayer");
 
@@ -125,7 +141,8 @@ public partial class Arena : Node2D
 
         if (_player.Character.IsDefeated)
         {
-            FinishRun("Niederlage");
+            DungeonRun.End();
+            FinishRun("Niederlage", "Zurück zur Taverne", "res://scenes/Hub.tscn");
             return;
         }
 
@@ -229,10 +246,31 @@ public partial class Arena : Node2D
         BeginWave(_currentWave + 1);
     }
 
+    /// <summary>
+    /// Letzte Welle besiegt: Gold gutschreiben, Fortschritt sichern
+    /// (DungeonRun/Player.SaveProgress) und je nachdem, ob noch Stages
+    /// übrig sind, entweder ins Lager (nächste Stage) oder zurück in die
+    /// Taverne (Dungeon komplett abgeschlossen).
+    /// </summary>
     private void CompleteStage()
     {
         PlayerWallet.Gold += GoldReward;
-        FinishRun($"Stage abgeschlossen! +{GoldReward} Gold");
+        _player.SaveProgress();
+
+        if (DungeonRun.CurrentStage < DungeonRun.TotalStages)
+        {
+            int finishedStage = DungeonRun.CurrentStage;
+            DungeonRun.AdvanceStage();
+            FinishRun(
+                $"Stage {finishedStage} von {DungeonRun.TotalStages} abgeschlossen! +{GoldReward} Gold",
+                "Weiter zum Lager",
+                "res://scenes/Camp.tscn");
+        }
+        else
+        {
+            DungeonRun.End();
+            FinishRun($"Dungeon abgeschlossen! +{GoldReward} Gold", "Zurück zur Taverne", "res://scenes/Hub.tscn");
+        }
     }
 
     private Vector2 RandomEdgePosition()
@@ -504,13 +542,15 @@ public partial class Arena : Node2D
         }
     }
 
-    private void FinishRun(string outcomeText)
+    private void FinishRun(string outcomeText, string buttonText, string targetScene)
     {
         _gameOver = true;
         _waveTransitionTimer.Stop();
         _player.SetDisabled(true);
         _outcomeLabel.Text = outcomeText;
         _outcomeLabel.Visible = true;
-        _returnToHubButton.Visible = true;
+        _continueButton.Text = buttonText;
+        _continueButton.Visible = true;
+        _pendingTargetScene = targetScene;
     }
 }

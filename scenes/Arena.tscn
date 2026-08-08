@@ -62,6 +62,11 @@ max_value = 2.0
 value = 0.0
 show_percentage = false
 
+[node name="StageLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_type_variation = &"DeskLabel"
+text = "Stage: 1 / 5"
+
 [node name="WaveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"DeskLabel"
@@ -78,7 +83,7 @@ theme_type_variation = &"TitleLabel"
 visible = false
 text = ""
 
-[node name="ReturnToHubButton" type="Button" parent="HUD/MarginContainer/VBoxContainer"]
+[node name="ContinueButton" type="Button" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 0
 visible = false

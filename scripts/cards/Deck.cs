@@ -14,10 +14,19 @@ public sealed class Deck
     private readonly List<CardDefinition> _discardPile = new();
     private readonly Random _rng = new();
 
-    public Deck(IEnumerable<CardDefinition> startingCards)
+    /// <summary>
+    /// shuffleOnCreate=false wird beim Fortsetzen eines Dungeons gebraucht:
+    /// der gespeicherte Nachziehstapel hat schon eine feste (gemischte)
+    /// Reihenfolge, die beim Wiederherstellen nicht erneut gemischt werden
+    /// darf (siehe DungeonRun/Player.SaveProgress).
+    /// </summary>
+    public Deck(IEnumerable<CardDefinition> startingCards, bool shuffleOnCreate = true)
     {
         _drawPile.AddRange(startingCards);
-        Shuffle(_drawPile);
+        if (shuffleOnCreate)
+        {
+            Shuffle(_drawPile);
+        }
     }
 
     public IReadOnlyList<CardDefinition> DrawPile => _drawPile;

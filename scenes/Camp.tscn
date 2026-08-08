@@ -1,9 +1,9 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scenes/Hub.cs" id="1"]
+[ext_resource type="Script" path="res://scenes/Camp.cs" id="1"]
 [ext_resource type="Theme" path="res://theme/game_theme.tres" id="2"]
 
-[node name="Hub" type="Control"]
+[node name="Camp" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -32,13 +32,13 @@ theme_override_constants/separation = 14
 [node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"TitleLabel"
-text = "Die Taverne"
+text = "Lager"
 horizontal_alignment = 1
 
 [node name="SubtitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"SubtitleLabel"
-text = "Ruhepunkt zwischen den Runs"
+text = "Stage abgeschlossen"
 horizontal_alignment = 1
 
 [node name="GoldLabel" type="Label" parent="MarginContainer/VBoxContainer"]
@@ -58,22 +58,12 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="EnterDungeonButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
+[node name="NextStageButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
-text = "Dungeon betreten"
+text = "Nächste Stage betreten"
 
-[node name="ManageCardsButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
+[node name="EndDungeonButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
-text = "Karten managen"
-
-[node name="ManagePartyButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Gruppe managen"
-
-[node name="EscapeWithLootButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Mit Loot entkommen"
+text = "Dungeon beenden"
