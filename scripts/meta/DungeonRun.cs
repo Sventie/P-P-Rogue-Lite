@@ -1,7 +1,9 @@
 namespace PPRogueLite.Meta;
 
 using System.Collections.Generic;
+using System.Linq;
 using PPRogueLite.Cards;
+using PPRogueLite.Dungeon;
 
 /// <summary>
 /// Zustand eines laufenden Dungeons, prozessweit über Szenenwechsel hinweg
@@ -12,12 +14,22 @@ using PPRogueLite.Cards;
 /// wenn die Taverne/Hub gezeigt wird). HasProgress unterscheidet innerhalb
 /// eines laufenden Dungeons zwischen Stage 1 (frischer Charakter) und
 /// Folge-Stages (gespeicherter Fortschritt wird von Player.cs übernommen).
+///
+/// Map/CurrentNode sind der verzweigte Dungeon-Pfad aus Issue #10: Start()
+/// erzeugt den kompletten Knoten-Graph einmalig, CurrentNodeId zeigt auf
+/// die Stage, die gerade läuft bzw. gerade abgeschlossen wurde;
+/// SelectNextNode wird vom Lager (Camp.cs) aufgerufen, wenn der Spieler
+/// seine nächste Route wählt.
 /// </summary>
 public static class DungeonRun
 {
-    public const int TotalStages = 5;
+    public const int TotalStages = 10;
+
+    public static DungeonMap? Map { get; private set; }
 
     public static int CurrentStage { get; private set; }
+
+    public static int CurrentNodeId { get; private set; }
 
     public static bool HasProgress { get; private set; }
 
@@ -31,14 +43,24 @@ public static class DungeonRun
 
     public static List<CardDefinition> SavedEquippedCards { get; private set; } = new();
 
+    public static StageNode CurrentNode => Map!.GetNode(CurrentNodeId);
+
     public static void Start()
     {
+        Map = DungeonMapGenerator.Generate(TotalStages);
         CurrentStage = 1;
+        CurrentNodeId = Map.Nodes.First(node => node.Column == 1).Id;
         HasProgress = false;
     }
 
-    public static void AdvanceStage()
+    /// <summary>Die vom aktuellen Knoten aus erreichbaren nächsten Routen (Issue #10).</summary>
+    public static IReadOnlyList<StageNode> GetNextChoices() =>
+        CurrentNode.NextNodeIds.Select(id => Map!.GetNode(id)).ToList();
+
+    /// <summary>Vom Lager aufgerufen, wenn der Spieler seine nächste Route gewählt hat.</summary>
+    public static void SelectNextNode(int nodeId)
     {
+        CurrentNodeId = nodeId;
         CurrentStage++;
     }
 
@@ -54,7 +76,9 @@ public static class DungeonRun
 
     public static void End()
     {
+        Map = null;
         CurrentStage = 0;
+        CurrentNodeId = 0;
         HasProgress = false;
         SavedDrawPile = new List<CardDefinition>();
         SavedEquippedCards = new List<CardDefinition>();

@@ -65,7 +65,7 @@ show_percentage = false
 [node name="StageLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"DeskLabel"
-text = "Stage: 1 / 5"
+text = "Stage: 1 / 10"
 
 [node name="WaveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2

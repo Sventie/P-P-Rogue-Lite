@@ -9,24 +9,25 @@ using PPRogueLite.Meta;
 
 /// <summary>
 /// Echtzeit-Arena: löst den alten rundenbasierten Testkampf (Main.tscn) ab.
-/// Eine Stage besteht aus 10 Wellen (Welle N spawnt N Gegner); die nächste
-/// Welle startet erst, wenn die aktuelle vollständig besiegt ist (siehe
-/// CheckWaveCleared). HP/XP/Stage/Welle/Überlebenszeit/Fähigkeiten-Leiste
-/// mit Cooldown-Balken werden im HUD angezeigt. Beim Level-up pausiert die
-/// Runde (Spieler/Gegner/Wellenwechsel deaktiviert) und zeigt die neu
-/// gezogene Karte zusammen mit einer Deck-/Ablage-Übersicht und dem
-/// Charakterbogen, bis der Spieler per "Weiter"-Button bestätigt.
+/// Eine Stage besteht aus mehreren Wellen (Welle N spawnt N Gegner, Anzahl
+/// der Wellen kommt vom gewählten Pfad-Knoten - siehe DungeonRun/Issue
+/// #10); die nächste Welle startet erst, wenn die aktuelle vollständig
+/// besiegt ist (siehe CheckWaveCleared). HP/XP/Stage/Welle/Überlebenszeit/
+/// Fähigkeiten-Leiste mit Cooldown-Balken werden im HUD angezeigt. Beim
+/// Level-up pausiert die Runde (Spieler/Gegner/Wellenwechsel deaktiviert)
+/// und zeigt die neu gezogene Karte zusammen mit einer Deck-/Ablage-
+/// Übersicht und dem Charakterbogen, bis der Spieler per "Weiter"-Button
+/// bestätigt.
 ///
 /// Eine Stage ist eine von mehreren Stationen eines Dungeons (siehe
 /// DungeonRun): nach Sieg in einer Nicht-Schluss-Stage geht's ins Lager
-/// (Camp.tscn) für die nächste Stage, nach der letzten Stage oder bei
-/// Niederlage zurück in die Taverne (Hub.tscn).
+/// (Camp.tscn) für die Routenwahl der nächsten Stage, nach der letzten
+/// Stage oder bei Niederlage zurück in die Taverne (Hub.tscn).
 /// </summary>
 public partial class Arena : Node2D
 {
     private const float SpawnMargin = 40f;
-    private const int TotalWaves = 10;
-    private const int GoldReward = 25; // Test-Balance-Wert für die Stage-Abschluss-Belohnung
+    private const int BaseGoldReward = 25; // Test-Balance-Wert, wird mit DungeonRun.CurrentNode.GoldMultiplier skaliert
 
     private static readonly Color HpGoodColor = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
@@ -62,6 +63,7 @@ public partial class Arena : Node2D
     private readonly Dictionary<string, Label> _abilityNameLabels = new();
 
     private double _survivalSeconds;
+    private int _totalWaves = 10;
     private int _currentWave;
     private bool _waveTransitionPending;
     private bool _gameOver;
@@ -78,6 +80,11 @@ public partial class Arena : Node2D
         {
             DungeonRun.Start();
         }
+
+        // Wellenanzahl kommt vom gewählten Pfad-Knoten (Issue #10) - Start-
+        // und Boss-Stage haben immer die Standard-Wellenanzahl ("ohne
+        // Modifikatoren"), Zwischen-Stages variieren je nach gewählter Route.
+        _totalWaves = DungeonRun.CurrentNode.WaveCount;
 
         _enemyScene = GD.Load<PackedScene>("res://scenes/EnemyGoblin.tscn");
         _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
@@ -209,7 +216,7 @@ public partial class Arena : Node2D
 
     private void UpdateWaveDisplay()
     {
-        _waveLabel.Text = $"Welle: {_currentWave} / {TotalWaves}";
+        _waveLabel.Text = $"Welle: {_currentWave} / {_totalWaves}";
     }
 
     /// <summary>
@@ -230,7 +237,7 @@ public partial class Arena : Node2D
             return;
         }
 
-        if (_currentWave >= TotalWaves)
+        if (_currentWave >= _totalWaves)
         {
             CompleteStage();
             return;
@@ -247,29 +254,31 @@ public partial class Arena : Node2D
     }
 
     /// <summary>
-    /// Letzte Welle besiegt: Gold gutschreiben, Fortschritt sichern
-    /// (DungeonRun/Player.SaveProgress) und je nachdem, ob noch Stages
-    /// übrig sind, entweder ins Lager (nächste Stage) oder zurück in die
-    /// Taverne (Dungeon komplett abgeschlossen).
+    /// Letzte Welle besiegt: Gold gutschreiben (Basisbetrag × Gold-
+    /// Multiplikator des gewählten Pfad-Knotens, Issue #10), Fortschritt
+    /// sichern (DungeonRun/Player.SaveProgress) und je nachdem, ob noch
+    /// Stages übrig sind, entweder ins Lager (Routenwahl für die nächste
+    /// Stage) oder zurück in die Taverne (Dungeon komplett abgeschlossen).
+    /// Die Stage-Nummer selbst wird hier NICHT erhöht - das passiert erst,
+    /// wenn der Spieler im Lager eine Route wählt (DungeonRun.SelectNextNode).
     /// </summary>
     private void CompleteStage()
     {
-        PlayerWallet.Gold += GoldReward;
+        int reward = (int)Math.Round(BaseGoldReward * DungeonRun.CurrentNode.GoldMultiplier);
+        PlayerWallet.Gold += reward;
         _player.SaveProgress();
 
         if (DungeonRun.CurrentStage < DungeonRun.TotalStages)
         {
-            int finishedStage = DungeonRun.CurrentStage;
-            DungeonRun.AdvanceStage();
             FinishRun(
-                $"Stage {finishedStage} von {DungeonRun.TotalStages} abgeschlossen! +{GoldReward} Gold",
+                $"Stage {DungeonRun.CurrentStage} von {DungeonRun.TotalStages} abgeschlossen! +{reward} Gold",
                 "Weiter zum Lager",
                 "res://scenes/Camp.tscn");
         }
         else
         {
             DungeonRun.End();
-            FinishRun($"Dungeon abgeschlossen! +{GoldReward} Gold", "Zurück zur Taverne", "res://scenes/Hub.tscn");
+            FinishRun($"Dungeon abgeschlossen! +{reward} Gold", "Zurück zur Taverne", "res://scenes/Hub.tscn");
         }
     }
 
