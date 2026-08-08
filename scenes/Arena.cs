@@ -29,6 +29,13 @@ public partial class Arena : Node2D
     private const float SpawnMargin = 40f;
     private const int BaseGoldReward = 25; // Test-Balance-Wert, wird mit DungeonRun.CurrentNode.GoldMultiplier skaliert
 
+    // NUR ZUM TESTEN: überschreibt die tatsächlich gespielte Wellenanzahl
+    // jeder Stage, unabhängig vom Pfad-Knoten - Lager/Routenwahl zeigen
+    // weiterhin die echte Wellenanzahl des Knotens an, nur die Arena
+    // spielt kürzer. Auf 0 setzen (oder die Zeile in _Ready löschen), um
+    // wieder DungeonRun.CurrentNode.WaveCount zu verwenden.
+    private const int TestWaveCountOverride = 2;
+
     private static readonly Color HpGoodColor = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
     private static readonly Color CooldownFillColor = new(0.690196f, 0.552941f, 0.239216f);
@@ -84,7 +91,7 @@ public partial class Arena : Node2D
         // Wellenanzahl kommt vom gewählten Pfad-Knoten (Issue #10) - Start-
         // und Boss-Stage haben immer die Standard-Wellenanzahl ("ohne
         // Modifikatoren"), Zwischen-Stages variieren je nach gewählter Route.
-        _totalWaves = DungeonRun.CurrentNode.WaveCount;
+        _totalWaves = TestWaveCountOverride > 0 ? TestWaveCountOverride : DungeonRun.CurrentNode.WaveCount;
 
         _enemyScene = GD.Load<PackedScene>("res://scenes/EnemyGoblin.tscn");
         _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
