@@ -7,6 +7,7 @@ using Godot;
 using PPRogueLite.Cards;
 using PPRogueLite.Character;
 using PPRogueLite.Combat;
+using CharacterEnemy = PPRogueLite.Character.Enemy;
 
 /// <summary>
 /// Verkabelt die reine Kampf-/Karten-Logik mit der UI. Entspricht dem Ablauf
@@ -33,7 +34,7 @@ public partial class Main : Control
     private readonly Queue<PendingLogEntry> _pendingLog = new();
 
     private PlayerCharacter _player = null!;
-    private Enemy _enemy = null!;
+    private CharacterEnemy _enemy = null!;
     private Deck _deck = null!;
     private CombatEngine _engine = null!;
     private List<CardDefinition> _hand = new();
@@ -122,7 +123,7 @@ public partial class Main : Control
             BaseArmorClass = 15,
         };
 
-        _enemy = new Enemy
+        _enemy = new CharacterEnemy
         {
             Name = "Höhlengoblin",
             MaxHp = 12,
