@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Godot;
 using PPRogueLite.Cards;
 using PPRogueLite.Character;
+using PPRogueLite.Enemies;
 using PPRogueLite.Meta;
 
 /// <summary>
@@ -93,7 +94,7 @@ public partial class Arena : Node2D
         // Modifikatoren"), Zwischen-Stages variieren je nach gewählter Route.
         _totalWaves = TestWaveCountOverride > 0 ? TestWaveCountOverride : DungeonRun.CurrentNode.WaveCount;
 
-        _enemyScene = GD.Load<PackedScene>("res://scenes/EnemyGoblin.tscn");
+        _enemyScene = GD.Load<PackedScene>("res://scenes/Enemy.tscn");
         _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
 
         _player = GetNode<Player>("Player");
@@ -204,9 +205,16 @@ public partial class Arena : Node2D
             return;
         }
 
-        var enemy = _enemyScene.Instantiate<EnemyGoblin>();
+        // Gestaffelte Einführung neuer Gegnertypen (Issue #9): welche Typen
+        // im Pool sind, hängt von der aktuellen Dungeon-Stage ab, nicht von
+        // der Stage-internen Wellenanzahl.
+        var pool = EnemyCatalog.AvailableForStage(DungeonRun.CurrentStage);
+        var definition = pool[GD.RandRange(0, pool.Count - 1)];
+
+        var enemy = _enemyScene.Instantiate<Enemy>();
         AddChild(enemy);
         enemy.Position = RandomEdgePosition();
+        enemy.Initialize(definition);
     }
 
     /// <summary>Startet Welle N: spawnt N Gegner auf einmal (Welle 1 = 1, Welle 2 = 2, ...).</summary>
@@ -227,7 +235,7 @@ public partial class Arena : Node2D
     }
 
     /// <summary>
-    /// Erkennt per Poll (kein Event von EnemyGoblin), ob die aktuelle Welle
+    /// Erkennt per Poll (kein Event von Enemy), ob die aktuelle Welle
     /// besiegt ist - dann entweder Stage abschließen (letzte Welle) oder
     /// nach einer kurzen Pause (WaveTransitionTimer) die nächste Welle
     /// starten.
@@ -533,9 +541,17 @@ public partial class Arena : Node2D
 
         foreach (Node node in GetTree().GetNodesInGroup("enemies"))
         {
-            if (node is EnemyGoblin enemy)
+            if (node is Enemy enemy)
             {
                 enemy.SetDisabled(paused);
+            }
+        }
+
+        foreach (Node node in GetTree().GetNodesInGroup("projectiles"))
+        {
+            if (node is Projectile projectile)
+            {
+                projectile.SetDisabled(paused);
             }
         }
 

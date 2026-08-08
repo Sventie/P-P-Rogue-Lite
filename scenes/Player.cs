@@ -77,6 +77,8 @@ public partial class Player : Node2D
     private bool _disabled;
     private bool _advantageReady;
     private float _paradeTimer;
+    private float _slowTimer;
+    private float _slowMultiplier = 1f;
     private int _xp;
     private int _level = 1;
 
@@ -164,6 +166,22 @@ public partial class Player : Node2D
         {
             _paradeTimer -= dt;
         }
+
+        if (_slowTimer > 0f)
+        {
+            _slowTimer -= dt;
+            if (_slowTimer <= 0f)
+            {
+                _slowMultiplier = 1f;
+            }
+        }
+    }
+
+    /// <summary>Verlangsamt die Bewegungsgeschwindigkeit für duration Sekunden (z. B. Kobold-Schamane-Treffer, Issue #9).</summary>
+    public void ApplySlow(float duration, float multiplier)
+    {
+        _slowTimer = duration;
+        _slowMultiplier = multiplier;
     }
 
     private void HandleMovement(float delta)
@@ -191,7 +209,7 @@ public partial class Player : Node2D
 
         if (direction != Vector2.Zero)
         {
-            Position += direction.Normalized() * Speed * delta;
+            Position += direction.Normalized() * Speed * _slowMultiplier * delta;
         }
 
         var viewportSize = GetViewport().GetVisibleRect().Size;
@@ -291,14 +309,14 @@ public partial class Player : Node2D
         SpawnFloatingText(target.Position, damage.ToString(), critical ? CritColor : HitColor);
     }
 
-    private EnemyGoblin? FindNearestEnemyInRange()
+    private Enemy? FindNearestEnemyInRange()
     {
-        EnemyGoblin? nearest = null;
+        Enemy? nearest = null;
         float nearestDistance = MeleeRange;
 
         foreach (Node node in GetTree().GetNodesInGroup("enemies"))
         {
-            if (node is not EnemyGoblin enemy)
+            if (node is not Enemy enemy)
             {
                 continue;
             }
