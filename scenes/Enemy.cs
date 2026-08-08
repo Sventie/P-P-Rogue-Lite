@@ -136,6 +136,7 @@ public partial class Enemy : Node2D
         else if (distance < _definition.EngagementRange - RangedTolerance)
         {
             Position -= toPlayer.Normalized() * _definition.MoveSpeed * delta;
+            ClampToViewport();
         }
 
         _attackTimer -= delta;
@@ -155,6 +156,7 @@ public partial class Enemy : Node2D
         {
             _retreatTimer -= delta;
             Position -= toPlayer.Normalized() * _definition.MoveSpeed * delta;
+            ClampToViewport();
             return;
         }
 
@@ -172,6 +174,21 @@ public partial class Enemy : Node2D
             AttackPlayer();
             _retreatTimer = RetreatDuration;
         }
+    }
+
+    /// <summary>
+    /// Hält Rückzugsbewegung (Ranged weicht zurück, HitAndRun zieht sich
+    /// zurück) innerhalb des Fensters - der Rand ist eine Wand. Nahkampf-
+    /// Bewegung braucht das nicht: sie läuft immer auf den (selbst schon
+    /// geklemmten) Spieler zu, kann das Fenster also nie verlassen.
+    /// </summary>
+    private void ClampToViewport()
+    {
+        var viewportSize = GetViewport().GetVisibleRect().Size;
+        float radius = _definition.Radius;
+        Position = new Vector2(
+            Mathf.Clamp(Position.X, radius, viewportSize.X - radius),
+            Mathf.Clamp(Position.Y, radius, viewportSize.Y - radius));
     }
 
     private void AttackPlayer()
