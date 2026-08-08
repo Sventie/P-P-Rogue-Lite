@@ -202,7 +202,11 @@ public partial class Player : Node2D
 
     private void UpdateAbilities(float delta)
     {
-        foreach (var ability in _abilities)
+        // Über eine Kopie iterieren: TriggerAbility kann einen Gegner
+        // besiegen -> GrantXp -> LevelUp -> EquipAbility fügt der Liste ein
+        // neues Element hinzu, was sonst eine InvalidOperationException
+        // auslöst, wenn das mitten in dieser Schleife passiert.
+        foreach (var ability in _abilities.ToList())
         {
             ability.Timer -= delta;
             if (ability.Timer <= 0f)
