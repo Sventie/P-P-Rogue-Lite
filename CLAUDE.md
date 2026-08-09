@@ -221,29 +221,50 @@ Datengrundlage ist weiterhin `PPRogueLite.Meta.PlayerCardCollection` (`scripts/m
 
 Vom Nutzer in Godot getestet, funktioniert (×/+-Buttons, Stückzahl-Anzeige, 10-Karten-Sperre).
 
+## Kartenplanung (Issue #12, in Arbeit – noch nicht implementiert)
+
+Gemeinsam mit dem Nutzer erarbeiteter Plan, bevor konkrete neue Karten geschrieben werden. Die 4 Kartentypen aus dem Issue (attack/defense/ability/modifier cards) ordnen sich so ein:
+
+- **Angriffskarten** (Hieb, Wuchtschlag) und **Verteidigungskarten** (Parade) sind bereits etabliert – Nahkampfangriff bzw. temporärer RK-Bonus, jeweils eigener Cooldown.
+- **Fähigkeitskarten** – "sonstige aktive Effekte, die weder reiner Schaden noch reine Verteidigung sind" (Finte, Atem holen fallen bereits hier rein).
+- **Modifikatorkarten** – der einzige Typ ohne Entsprechung im bestehenden System. Der Nutzer will **alle drei** folgenden Spielarten möglich machen, nicht nur eine:
+  1. **Globale passive Boni** (z. B. dauerhaft +1 RK oder +1 auf Angriffswürfe). Bewusst als stark eingeschätzt, da sie *jede* Aktion des Charakters dauerhaft verbessern.
+  2. **An eine bestimmte andere Karte gekoppelt** (z. B. "50 % Chance auf Gift/Brand/Blutung bei Hieb", "AOE-Schaden um den Charakter bei Atem holen") – ermöglicht gezielte Build-Synergien.
+  3. **Reaktiv auf Ereignisse** (z. B. "+30 % Bewegungsgeschwindigkeit für 2 s nach einem kritischen Treffer", mit fehlender HP skalierender Angriffsbonus).
+
+**Geplante Architektur** (noch nicht umgesetzt): `CardDefinition` bekommt eine neue Unterscheidung `CardKind` (`Action` vs. `Modifier`). Aktionskarten laufen weiter wie bisher über `ActiveAbility` mit eigenem Cooldown (`Player.TriggerAbility`). Modifikatorkarten bekommen **keinen** Cooldown-Slot, sondern werden beim Ausrüsten einmalig über eine neue `Player.ApplyModifier(card)` registriert (gleiches Switch-über-Id-Muster wie `TriggerAbility`, aber einmalig statt wiederkehrend):
+- Globale passive Boni: zusätzliche Felder auf `Player`/`PlayerCharacter` (z. B. `_bonusArmorClass`), die in `EffectiveArmorClass`/Angriffswürfe mit einfließen – kein neues System nötig.
+- Gekoppelte Modifikatoren: eine Zuordnung "Modifikator hängt an Karte X" (z. B. `Dictionary<string, List<string>>`), die `TriggerAbility` bei der jeweiligen Karte zusätzlich abfragt.
+- Reaktive Modifikatoren: kleine Hooks in `Player` (z. B. bei kritischem Treffer in `ResolveMeleeAttack`), auf die ein Modifikator beim Ausrüsten reagiert – gleiches Timer-Muster wie der bestehende Parade-Bonus/Slow-Effekt, nur als Buff.
+
+**Wichtige Abgrenzung:** Gift/Brand/Blutung (Beispiel für gekoppelte Modifikatoren) brauchen zusätzlich ein eigenes Schaden-über-Zeit-System auf `Enemy.cs`, das aktuell nicht existiert – bewusst als **eigenes Issue #14** ausgelagert, damit die Modifikator-Grundmechanik (#12) davon unabhängig fertig werden kann. "Mit fehlender HP skalierender Angriffsbonus" ist technisch keine eigene (vierte) Spielart, sondern eine Variante der globalen passiven Boni mit einer Formel statt einer festen Zahl.
+
+**Geplante Startkarten** (mindestens eine pro Modifikator-Spielart, um das Grundgerüst zu etablieren): "Kampfrausch" (global, +1 auf Angriffswürfe), "Explosive Heilung" (gekoppelt an Atem holen, AOE-Schaden bei Heilung), "Adrenalin" (reaktiv, Tempo-Buff nach Krit) – Namen/Werte noch nicht final abgestimmt.
+
+**Optische Abgrenzung:** Modifikatorkarten sollen sich von Aktionskarten unterscheiden lassen, fürs Erste **nur über eine andere Farbgebung** (z. B. eigene `theme_type_variation` für `CardPanel`, analog zu den bestehenden Kartentyp-Varianten) – reicht laut Nutzer, um das Deck einfacher zusammenzustellen und später beim Öffnen von Kartenpacks (#4) schnell zu erkennen, was gezogen wurde. Kein Formunterschied o. Ä. in dieser ersten Version.
+
 ## Offene Punkte / nächste Schritte
 
-**GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#13). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer):
+**GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#20). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer). Issues #14–#20 sind neu entstanden aus vorher nur hier im Dokument notierten offenen Punkten/Entscheidungen – siehe jeweilige Issue-Beschreibung für Details, hier nur kurz zusammengefasst:
 
 1. ~~**#2 Add Stage logic**~~ – **umgesetzt** (siehe Echtzeit-Arena-Abschnitt oben: Stage aus mehreren Wellen, Welle N = N Gegner, Gold-Belohnung bei Abschluss). Noch nicht vom Nutzer in Godot gegengeprüft.
 2. ~~**#3 Add Dungeon logic**~~ – **umgesetzt** (siehe Dungeon-Struktur-Abschnitt oben: mehrere Stages pro Dungeon, neues Lager `Camp.tscn` als Zwischenstopp *innerhalb* eines Dungeons, Taverne/Hub nur noch *zwischen* Dungeons, Charakter-Fortschritt über `DungeonRun` erhalten). Noch nicht vom Nutzer in Godot gegengeprüft.
 3. ~~**#10 Add Dungeonpath**~~ – **umgesetzt** (siehe Dungeon-Struktur-Abschnitt oben: verzweigter Knoten-Graph über 10 Stages statt linearer Kette, `DungeonMapGenerator`, Routenwahl im Lager mit Wellenanzahl-/Gold-Modifikatoren; `TotalStages` dafür von 5 auf 10 erhöht). Noch nicht vom Nutzer in Godot gegengeprüft. Bewusst **ohne** grafische Graph-/Node-Map-Ansicht wie in der Issue-Skizze – nur die konkret erreichbaren nächsten Routen werden als Buttons gezeigt.
 4. ~~**#9 Add different enemies**~~ – **umgesetzt** (siehe Gegner-Vielfalt-Abschnitt oben: 5 Typen – Goblin/Troll/Bogenschütze/Schamane/Schurke – über einen gemeinsamen `Enemy.cs`-Node, gestaffelt nach Dungeon-Stage freigeschaltet und ab Freischaltung gemischt gespawnt). Noch nicht vom Nutzer in Godot gegengeprüft.
 5. **#11 Add boss fight in stage 10** – braucht die Gegner-Designsprache aus #9; Stage 10 (einzelner Endknoten im Pfad) existiert bereits aus #10, aktuell noch ohne echten Boss.
-6. **#12 add new cards** (Angriffs-/Verteidigungs-/Fähigkeits-/Modifikator-Karten) – Karteninhalt vertiefen.
-7. **#4 Add Card Shop** – braucht Gold-Belohnungen (jetzt aus #2/#10 vorhanden, `PlayerWallet`) und einen volleren Kartenpool aus #12.
-8. **#13 Add new characters** – Charakterinhalt, Voraussetzung für Gruppe & Charakter-Shop.
-9. **#5 Add Group** – Party bis 4 Charaktere, braucht #13.
-10. **#7 Add character death** – überschneidet sich stark mit #5 (Permadeath für Nicht-Hauptcharaktere), am besten zusammen mit #5 umsetzen statt als getrennten Schritt.
-11. **#6 Add Character Shop** – braucht #13, #5 und das Shop-Muster aus #4.
-12. **#8 Add stat overview after stage & dungeon** – Reporting-Capstone, braucht Gruppe (#5) und Stage/Dungeon-Struktur (#2/#3/#10) als Datengrundlage.
+6. **#12 add new cards** – **in Arbeit** (siehe Kartenplanung-Abschnitt oben: `CardKind` Action/Modifier, drei Modifikator-Spielarten geplant, optische Abgrenzung nur über Farbe, drei Startkarten grob skizziert) – noch nicht implementiert.
+7. **#14 Add damage-over-time status effects** (Gift/Brand/Blutung) – bewusst von #12 abgetrennter Fast-Follow für gekoppelte Modifikatoren, braucht ein neues Status-Effekt-System auf `Enemy.cs`.
+8. **#15 Let the player choose among multiple drawn cards on level-up** – lohnt sich stärker, je größer der Kartenpool aus #12 wird.
+9. **#4 Add Card Shop** – braucht Gold-Belohnungen (jetzt aus #2/#10 vorhanden, `PlayerWallet`) und einen volleren Kartenpool aus #12.
+10. **#13 Add new characters** – Charakterinhalt, Voraussetzung für Gruppe & Charakter-Shop.
+11. **#5 Add Group** – Party bis 4 Charaktere, braucht #13.
+12. **#7 Add character death** – überschneidet sich stark mit #5 (Permadeath für Nicht-Hauptcharaktere), am besten zusammen mit #5 umsetzen statt als getrennten Schritt.
+13. **#6 Add Character Shop** – braucht #13, #5 und das Shop-Muster aus #4.
+14. **#8 Add stat overview after stage & dungeon** – Reporting-Capstone, braucht Gruppe (#5) und Stage/Dungeon-Struktur (#2/#3/#10) als Datengrundlage.
+15. **#16 Add a gold-theft enemy type** – kleine Content-Ergänzung, blockiert nichts anderes.
+16. **#20 Decide how to handle deck exhaustion** – geringe Priorität, tritt bei aktuellen Balance-Werten praktisch nicht auf (~Level 11).
+17. **#17 Do a real balancing pass** – bewusst spät, erst wenn Gegner-/Karten-/Boss-Inhalt nicht mehr in Bewegung ist. `Arena.TestWaveCountOverride` vorher zurücksetzen.
+18. **#18 Replace drawn circles with real sprites/animations** – Art-Pass, braucht Assets von außerhalb, sinnvoll erst wenn die Mechanik sich beruhigt hat.
+19. **#19 Decide whether to delete the legacy turn-based combat code** – reine Aufräumarbeit, jederzeit möglich, keine Abhängigkeiten.
 
-Sonstige offene Punkte, unabhängig vom Issue-Backlog:
-
-- **Deck-Erschöpfung:** Ist das Deck leer (nach ca. Level 11 bei 10 Karten), liefert `LevelUp()` einfach keine neue Fähigkeit mehr (stiller No-op, `drawn.Count == 0` → return). Bewusst nicht behoben, kein akuter Bedarf – möglicher Ansatz später: Nachziehstapel aus ausgerüsteten Karten neu mischen, oder bei XP-Überschuss einfach nichts mehr passieren lassen.
-- **Gold-Diebstahl-Gegner:** Der Kobold-Schurke (Issue #9) macht bewusst nur normalen Schaden. Ein Dieb mit Gold-Diebstahl-Mechanik (stiehlt bei Treffer etwas `PlayerWallet.Gold`) ist als mögliche spätere Ergänzung/eigener Gegnertyp gedacht (Nutzerwunsch), noch nicht umgesetzt.
-- Auswahl zwischen mehreren gezogenen Karten beim Level-up (aktuell wird automatisch die eine gezogene Karte ausgerüstet).
-- Balancing von Karten-Synergien und Progressionskurve (XP-pro-Level, Fähigkeiten-Cooldowns, Wellengröße, Gold-Belohnung – aktuell grobe Testwerte, bewusst leicht gestellt zum schnellen Iterieren, noch nicht auf "echtes" Balancing hin geprüft).
-- Echte Sprites/Animationen statt gezeichneter Kreise/Formen.
-- Godot-Physik/Kollisionslayer für die Arena einführen, falls die reinen Distanzchecks nicht mehr reichen (z. B. für Gegner-Ausweichverhalten untereinander).
-- Entscheidung, ob/wann die Altlasten (alter rundenbasierter Kampf, siehe eigener Abschnitt) endgültig gelöscht werden.
+Godot-Physik/Kollisionslayer für die Arena (falls die reinen Distanzchecks irgendwann nicht mehr reichen, z. B. für Gegner-Ausweichverhalten untereinander) ist bewusst **kein eigenes Issue** – rein spekulativ, kein aktueller Auslöser.
