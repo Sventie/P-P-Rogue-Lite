@@ -2,6 +2,7 @@ namespace PPRogueLite.Cards;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using PPRogueLite.Combat;
 
 /// <summary>
@@ -94,6 +95,26 @@ public sealed class Deck
     public void Discard(CardDefinition card)
     {
         _discardPile.Add(card);
+    }
+
+    /// <summary>Mischt die komplette Ablage zurück in den Nachziehstapel (Issue #21, ausgelöst über die Wiederkehr-Karte) - gleiche Mischlogik wie der automatische Reshuffle in DrawHand, hier aber gezielt auslösbar statt nur bei leerem Nachziehstapel.</summary>
+    public void ReshuffleDiscardIntoDrawPile()
+    {
+        _drawPile.AddRange(_discardPile);
+        _discardPile.Clear();
+        Shuffle(_drawPile);
+    }
+
+    /// <summary>Entfernt eine Karteninstanz mit der gegebenen Id aus der Ablage und gibt sie zurück (Issue #22: gezielte Rückholung einer Karte aus der Ablage über die Erinnerung-Karte). null, falls keine passende Karte mehr in der Ablage liegt.</summary>
+    public CardDefinition? TakeFromDiscard(string cardId)
+    {
+        var match = _discardPile.FirstOrDefault(card => card.Id == cardId);
+        if (match is not null)
+        {
+            _discardPile.Remove(match);
+        }
+
+        return match;
     }
 
     private void Shuffle(List<CardDefinition> cards)

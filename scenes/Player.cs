@@ -78,6 +78,9 @@ public partial class Player : Node2D
     /// <summary>Feuert bei einem Level-up, wenn mehrere Karten zur Auswahl gezogen wurden (Issue #15) - der Aufrufer muss ResolveCardChoice mit der Wahl aufrufen.</summary>
     public event Action<IReadOnlyList<CardDefinition>>? CardChoiceOffered;
 
+    /// <summary>Feuert, wenn die Erinnerung-Fähigkeit auslöst (Issue #22) - der Aufrufer muss ResolveDiscardChoice mit der Wahl aufrufen. Feuert nicht bei leerer Ablage.</summary>
+    public event Action<IReadOnlyList<CardDefinition>>? DiscardChoiceOffered;
+
     public PlayerCharacter Character { get; private set; } = null!;
 
     public int EffectiveArmorClass => Character.ArmorClass + (_paradeTimer > 0f ? (int)ParadeBonus : 0);
@@ -364,6 +367,23 @@ public partial class Player : Node2D
 
                 break;
             }
+
+            case "wiederkehr":
+                if (_runDeck.DiscardPile.Count > 0)
+                {
+                    _runDeck.ReshuffleDiscardIntoDrawPile();
+                    SpawnFloatingText(Position, "Wiederkehr!", CritColor);
+                }
+
+                break;
+
+            case "erinnerung":
+                if (_runDeck.DiscardPile.Count > 0)
+                {
+                    DiscardChoiceOffered?.Invoke(new List<CardDefinition>(_runDeck.DiscardPile));
+                }
+
+                break;
         }
     }
 
@@ -613,6 +633,8 @@ public partial class Player : Node2D
         "parade" => 4.0f,
         "finte" => 5.0f,
         "atemholen" => 8.0f,
+        "wiederkehr" => 20.0f, // Issue #21: seltener, build-prägender Effekt statt Basis-Tool
+        "erinnerung" => 15.0f, // Issue #22
         _ => 2.0f,
     };
 
@@ -673,6 +695,16 @@ public partial class Player : Node2D
             {
                 _runDeck.Discard(card);
             }
+        }
+    }
+
+    /// <summary>Schließt eine per DiscardChoiceOffered angebotene Auswahl ab (Issue #22): die gewählte Karte wird aus der Ablage entfernt und direkt ausgerüstet. Über die Id statt einer konkreten Instanz aufgelöst (gleiches Muster wie DeckScreen.MoveOneCard), da Card-Instanzen desselben Typs austauschbar sind.</summary>
+    public void ResolveDiscardChoice(string chosenCardId)
+    {
+        var card = _runDeck.TakeFromDiscard(chosenCardId);
+        if (card is not null)
+        {
+            EquipCard(card, announce: false);
         }
     }
 

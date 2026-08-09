@@ -2,6 +2,7 @@ namespace PPRogueLite;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using PPRogueLite.Cards;
@@ -110,6 +111,7 @@ public partial class Arena : Node2D
         _player.AbilityGained += OnAbilityGained;
         _player.NewAbilityTypeUnlocked += AddAbilityBadge;
         _player.CardChoiceOffered += OnCardChoiceOffered;
+        _player.DiscardChoiceOffered += OnDiscardChoiceOffered;
 
         _waveTransitionTimer = GetNode<Timer>("WaveTransitionTimer");
         _waveTransitionTimer.Timeout += OnWaveTransitionTimeout;
@@ -535,6 +537,78 @@ public partial class Arena : Node2D
 
         var chosen = await selection.Task;
         _player.ResolveCardChoice(chosen, candidates);
+        UpdateAbilityLabel(chosen);
+
+        row.QueueFree();
+        SetWorldPaused(false);
+    }
+
+    /// <summary>
+    /// Auswahl aus der Ablage (Issue #22, "Erinnerung"): gleicher Aufbau
+    /// wie OnCardChoiceOffered, aber die Kandidaten kommen aus der Ablage
+    /// (gruppiert nach Kartentyp mit Stückzahl, gleiches Muster wie
+    /// DeckScreen.RenderColumn) statt aus frisch gezogenen Karten. Die
+    /// gewählte Karte wird über Player.ResolveDiscardChoice direkt
+    /// ausgerüstet, alle anderen bleiben in der Ablage liegen.
+    /// </summary>
+    private async void OnDiscardChoiceOffered(IReadOnlyList<CardDefinition> discardPile)
+    {
+        SetWorldPaused(true);
+
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+            SizeFlagsVertical = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+        };
+        row.AddThemeConstantOverride("separation", 24);
+
+        var deckColumn = BuildDeckOverviewColumn();
+
+        var choiceColumn = new VBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        choiceColumn.AddThemeConstantOverride("separation", 12);
+        choiceColumn.AddChild(new Label
+        {
+            Text = "Wähle eine Karte aus der Ablage",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = "ColumnHeaderLabel",
+        });
+
+        var cardsRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        cardsRow.AddThemeConstantOverride("separation", 16);
+        choiceColumn.AddChild(cardsRow);
+
+        var grouped = discardPile
+            .GroupBy(card => card.Id)
+            .Select(group => (Card: group.First(), Count: group.Count()))
+            .OrderBy(entry => entry.Card.DisplayName);
+
+        var selection = new TaskCompletionSource<CardDefinition>();
+        foreach (var (card, count) in grouped)
+        {
+            var cardView = _cardViewScene.Instantiate<CardView>();
+            cardsRow.AddChild(cardView);
+            cardView.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
+            cardView.Populate(card, count);
+            cardView.Clicked += () => selection.TrySetResult(card);
+        }
+
+        var sheetColumn = BuildCharacterSheet();
+        sheetColumn.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+
+        row.AddChild(deckColumn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand });
+        row.AddChild(choiceColumn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand });
+        row.AddChild(sheetColumn);
+
+        _levelUpLayer.AddChild(row);
+
+        var chosen = await selection.Task;
+        _player.ResolveDiscardChoice(chosen.Id);
         UpdateAbilityLabel(chosen);
 
         row.QueueFree();

@@ -59,6 +59,8 @@ public static class CardCatalog
         bench.Add(new GiftklingeCard());
         bench.Add(new BrandCard());
         bench.Add(new BlutungCard());
+        bench.Add(new WiederkehrCard());
+        bench.Add(new ErinnerungCard());
 
         return bench;
     }
@@ -77,5 +79,7 @@ public static class CardCatalog
         new GiftklingeCard(),
         new BrandCard(),
         new BlutungCard(),
+        new WiederkehrCard(),
+        new ErinnerungCard(),
     };
 }
