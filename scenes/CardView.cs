@@ -24,6 +24,7 @@ public partial class CardView : Control
 
     public CardDefinition? Card { get; private set; }
 
+    private PanelContainer _panel = null!;
     private Label _typeLabel = null!;
     private Label _nameLabel = null!;
     private Label _descriptionLabel = null!;
@@ -44,6 +45,7 @@ public partial class CardView : Control
 
     public override void _Ready()
     {
+        _panel = GetNode<PanelContainer>("Panel");
         _typeLabel = GetNode<Label>("Panel/CardScroll/CardVBox/TypeLabel");
         _nameLabel = GetNode<Label>("Panel/CardScroll/CardVBox/NameLabel");
         _descriptionLabel = GetNode<Label>("Panel/CardScroll/CardVBox/DescriptionLabel");
@@ -55,6 +57,7 @@ public partial class CardView : Control
     public void Populate(CardDefinition card, int count = 1)
     {
         Card = card;
+        _panel.ThemeTypeVariation = card.Kind == CardKind.Modifier ? "ModifierCardPanel" : "CardPanel";
         _typeLabel.Text = card.CardType.ToUpperInvariant();
         _nameLabel.Text = count > 1 ? $"{card.DisplayName}  ×{count}" : card.DisplayName;
         _descriptionLabel.Text = card.Description;

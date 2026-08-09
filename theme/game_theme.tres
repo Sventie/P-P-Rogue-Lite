@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=10 format=3]
+[gd_resource type="Theme" load_steps=11 format=3]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.847059, 0.796078, 0.627451, 1)
@@ -80,6 +80,24 @@ content_margin_top = 1.0
 content_margin_right = 2.0
 content_margin_bottom = 1.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_modifier"]
+bg_color = Color(0.72549, 0.65098, 0.784314, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.278431, 0.164706, 0.34902, 0.4)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 6
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_log_panel"]
 bg_color = Color(0, 0, 0, 0.04)
 border_width_left = 1
@@ -131,6 +149,9 @@ Button/colors/font_disabled_color = Color(0.070588, 0.054902, 0.039216, 0.5)
 
 CardPanel/base_type = &"PanelContainer"
 CardPanel/styles/panel = SubResource("StyleBoxFlat_card_normal")
+
+ModifierCardPanel/base_type = &"PanelContainer"
+ModifierCardPanel/styles/panel = SubResource("StyleBoxFlat_card_modifier")
 
 CardActionButton/base_type = &"Button"
 CardActionButton/styles/normal = SubResource("StyleBoxFlat_card_action")

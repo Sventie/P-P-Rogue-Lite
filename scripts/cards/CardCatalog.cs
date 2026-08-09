@@ -32,7 +32,9 @@ public static class CardCatalog
     /// <summary>
     /// Karten, die der Krieger zusätzlich zum Startdeck besitzt, aber
     /// aktuell nicht im Kampf-Deck hat - für die "nicht im Deck"-Spalte im
-    /// Deck-Screen.
+    /// Deck-Screen. Die drei neuen Modifikatorkarten (Issue #12) starten
+    /// hier statt im Startdeck, damit sie erst bewusst über den Deck-Screen
+    /// ins aktive Deck geholt werden, bevor sie balanciert sind.
     /// </summary>
     public static List<CardDefinition> BuildWarriorBenchCards()
     {
@@ -51,6 +53,9 @@ public static class CardCatalog
         bench.Add(new ParadeCard());
         bench.Add(new FinteCard());
         bench.Add(new AtemHolenCard());
+        bench.Add(new KampfrauschCard());
+        bench.Add(new ExplosiveHeilungCard());
+        bench.Add(new AdrenalinCard());
 
         return bench;
     }
@@ -63,5 +68,8 @@ public static class CardCatalog
         new ParadeCard(),
         new FinteCard(),
         new AtemHolenCard(),
+        new KampfrauschCard(),
+        new ExplosiveHeilungCard(),
+        new AdrenalinCard(),
     };
 }

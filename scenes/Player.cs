@@ -28,6 +28,12 @@ public partial class Player : Node2D
     private const float ParadeBonus = 4f;
     private const float ParadeDuration = 2f;
 
+    // Modifikatorkarten-Startset (Issue #12), Test-Balance-Werte:
+    private const float HasteDuration = 2f; // Adrenalin
+    private const float HasteMultiplier = 1.3f;
+    private const float ExplosiveHeilungRadius = 140f; // Explosive Heilung
+    private const int ExplosiveHeilungDamage = 6;
+
     private static readonly Color BodyColor = new(0.690196f, 0.552941f, 0.239216f);
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
     private static readonly Color HitColor = new(0.352941f, 0.478431f, 0.309804f);
@@ -71,6 +77,8 @@ public partial class Player : Node2D
     public int XpToNextLevel => XpPerLevel;
 
     private readonly List<ActiveAbility> _abilities = new();
+    private readonly List<CardDefinition> _modifiers = new();
+    private readonly Dictionary<string, List<string>> _modifiersByTargetCardId = new();
     private Deck _runDeck = null!;
     private PackedScene _floatingTextScene = null!;
 
@@ -79,6 +87,9 @@ public partial class Player : Node2D
     private float _paradeTimer;
     private float _slowTimer;
     private float _slowMultiplier = 1f;
+    private float _hasteTimer;
+    private float _hasteMultiplier = 1f;
+    private int _bonusAttackRoll;
     private int _xp;
     private int _level = 1;
 
@@ -117,7 +128,7 @@ public partial class Player : Node2D
 
             foreach (var card in DungeonRun.SavedEquippedCards)
             {
-                EquipAbility(card, announce: false);
+                EquipCard(card, announce: false);
             }
         }
         else
@@ -137,12 +148,13 @@ public partial class Player : Node2D
     /// </summary>
     public void SaveProgress()
     {
+        var equippedCards = _abilities.Select(ability => ability.Card).Concat(_modifiers).ToList();
         DungeonRun.SaveProgress(
             Character.Hp,
             _xp,
             _level,
             new List<CardDefinition>(_runDeck.DrawPile),
-            _abilities.Select(ability => ability.Card).ToList());
+            equippedCards);
     }
 
     public override void _Draw()
@@ -175,6 +187,15 @@ public partial class Player : Node2D
                 _slowMultiplier = 1f;
             }
         }
+
+        if (_hasteTimer > 0f)
+        {
+            _hasteTimer -= dt;
+            if (_hasteTimer <= 0f)
+            {
+                _hasteMultiplier = 1f;
+            }
+        }
     }
 
     /// <summary>Verlangsamt die Bewegungsgeschwindigkeit für duration Sekunden (z. B. Kobold-Schamane-Treffer, Issue #9).</summary>
@@ -182,6 +203,13 @@ public partial class Player : Node2D
     {
         _slowTimer = duration;
         _slowMultiplier = multiplier;
+    }
+
+    /// <summary>Beschleunigt die Bewegungsgeschwindigkeit für duration Sekunden (z. B. Adrenalin nach einem Krit, Issue #12).</summary>
+    public void ApplyHaste(float duration, float multiplier)
+    {
+        _hasteTimer = duration;
+        _hasteMultiplier = multiplier;
     }
 
     private void HandleMovement(float delta)
@@ -209,7 +237,7 @@ public partial class Player : Node2D
 
         if (direction != Vector2.Zero)
         {
-            Position += direction.Normalized() * Speed * _slowMultiplier * delta;
+            Position += direction.Normalized() * Speed * _slowMultiplier * _hasteMultiplier * delta;
         }
 
         var viewportSize = GetViewport().GetVisibleRect().Size;
@@ -221,7 +249,7 @@ public partial class Player : Node2D
     private void UpdateAbilities(float delta)
     {
         // Über eine Kopie iterieren: TriggerAbility kann einen Gegner
-        // besiegen -> GrantXp -> LevelUp -> EquipAbility fügt der Liste ein
+        // besiegen -> GrantXp -> LevelUp -> EquipCard fügt der Liste ein
         // neues Element hinzu, was sonst eine InvalidOperationException
         // auslöst, wenn das mitten in dieser Schleife passiert.
         foreach (var ability in _abilities.ToList())
@@ -242,14 +270,14 @@ public partial class Player : Node2D
             case "hieb":
             {
                 int modifier = Character.Stats.Modifier(Ability.Strength);
-                ResolveMeleeAttack(modifier, damageDiceCount: 1, damageDie: 8, damageBonus: modifier);
+                ResolveMeleeAttack(modifier + _bonusAttackRoll, damageDiceCount: 1, damageDie: 8, damageBonus: modifier);
                 break;
             }
 
             case "wuchtschlag":
             {
                 int fullModifier = Character.Stats.Modifier(Ability.Strength);
-                ResolveMeleeAttack(fullModifier - 2, damageDiceCount: 2, damageDie: 8, damageBonus: fullModifier);
+                ResolveMeleeAttack(fullModifier - 2 + _bonusAttackRoll, damageDiceCount: 2, damageDie: 8, damageBonus: fullModifier);
                 break;
             }
 
@@ -268,8 +296,44 @@ public partial class Player : Node2D
                 int heal = Dice.Roll(10) + 1;
                 Character.Heal(heal);
                 SpawnFloatingText(Position, $"+{heal}", HitColor);
+
+                foreach (var modifierId in ModifiersFor("atemholen"))
+                {
+                    ApplyCoupledEffect(modifierId);
+                }
+
                 break;
             }
+        }
+    }
+
+    /// <summary>Wirkung eines an eine Aktionskarte gekoppelten Modifikators (Issue #12), ausgelöst wenn die Zielkarte auslöst.</summary>
+    private void ApplyCoupledEffect(string modifierId)
+    {
+        switch (modifierId)
+        {
+            case "explosive_heilung":
+                DealAoeDamage(ExplosiveHeilungRadius, ExplosiveHeilungDamage);
+                break;
+        }
+    }
+
+    private void DealAoeDamage(float radius, int damage)
+    {
+        foreach (Node node in GetTree().GetNodesInGroup("enemies"))
+        {
+            if (node is not Enemy enemy)
+            {
+                continue;
+            }
+
+            if (Position.DistanceTo(enemy.Position) > radius)
+            {
+                continue;
+            }
+
+            enemy.TakeDamage(damage);
+            SpawnFloatingText(enemy.Position, damage.ToString(), CritColor);
         }
     }
 
@@ -307,6 +371,21 @@ public partial class Player : Node2D
 
         target.TakeDamage(damage);
         SpawnFloatingText(target.Position, damage.ToString(), critical ? CritColor : HitColor);
+
+        if (critical)
+        {
+            OnCriticalHit();
+        }
+    }
+
+    /// <summary>Reaktiver Modifikator-Hook (Issue #12): wird bei jedem kritischen Treffer aufgerufen.</summary>
+    private void OnCriticalHit()
+    {
+        if (HasModifier("adrenalin"))
+        {
+            ApplyHaste(HasteDuration, HasteMultiplier);
+            SpawnFloatingText(Position, "Adrenalin!", CritColor);
+        }
     }
 
     private Enemy? FindNearestEnemyInRange()
@@ -332,6 +411,19 @@ public partial class Player : Node2D
         return nearest;
     }
 
+    /// <summary>Verdrahtet eine gezogene Karte je nach CardKind (Issue #12) entweder als ActiveAbility oder als passiven Modifikator.</summary>
+    private void EquipCard(CardDefinition card, bool announce)
+    {
+        if (card.Kind == CardKind.Modifier)
+        {
+            EquipModifier(card, announce);
+        }
+        else
+        {
+            EquipAbility(card, announce);
+        }
+    }
+
     private void EquipAbility(CardDefinition card, bool announce)
     {
         bool isNewType = !_abilities.Any(ability => ability.Card.Id == card.Id);
@@ -349,8 +441,54 @@ public partial class Player : Node2D
         }
     }
 
-    /// <summary>Wie oft eine Karte dieses Typs bereits gezogen und ausgerüstet wurde.</summary>
-    public int CountEquipped(string cardId) => _abilities.Count(ability => ability.Card.Id == cardId);
+    /// <summary>
+    /// Registriert eine Modifikatorkarte einmalig (kein Cooldown-Slot, siehe
+    /// Kartenplanung/Issue #12 in CLAUDE.md). Erscheint bewusst NICHT in der
+    /// Fähigkeiten-Leiste - dafür feuert nur AbilityGained (Level-up-Anzeige),
+    /// nicht NewAbilityTypeUnlocked (Ability-Bar-Badge).
+    /// </summary>
+    private void EquipModifier(CardDefinition card, bool announce)
+    {
+        _modifiers.Add(card);
+
+        if (card.CoupledCardId is not null)
+        {
+            if (!_modifiersByTargetCardId.TryGetValue(card.CoupledCardId, out var attached))
+            {
+                attached = new List<string>();
+                _modifiersByTargetCardId[card.CoupledCardId] = attached;
+            }
+
+            attached.Add(card.Id);
+        }
+
+        ApplyModifierEffect(card);
+
+        if (announce)
+        {
+            AbilityGained?.Invoke(card);
+        }
+    }
+
+    /// <summary>Einmalige Wirkung beim Ausrüsten einer Modifikatorkarte - für globale passive Boni (Issue #12).</summary>
+    private void ApplyModifierEffect(CardDefinition card)
+    {
+        switch (card.Id)
+        {
+            case "kampfrausch":
+                _bonusAttackRoll += 1;
+                break;
+        }
+    }
+
+    private bool HasModifier(string modifierId) => _modifiers.Any(m => m.Id == modifierId);
+
+    private IReadOnlyList<string> ModifiersFor(string cardId) =>
+        _modifiersByTargetCardId.TryGetValue(cardId, out var attached) ? attached : Array.Empty<string>();
+
+    /// <summary>Wie oft eine Karte dieses Typs bereits gezogen und ausgerüstet wurde (Aktion oder Modifikator).</summary>
+    public int CountEquipped(string cardId) =>
+        _abilities.Count(ability => ability.Card.Id == cardId) + _modifiers.Count(m => m.Id == cardId);
 
     /// <summary>Wie viele Karten dieses Typs noch im laufeigenen Nachziehstapel liegen.</summary>
     public int CountInDrawPile(string cardId) => _runDeck.DrawPile.Count(card => card.Id == cardId);
@@ -402,7 +540,7 @@ public partial class Player : Node2D
             return;
         }
 
-        EquipAbility(drawn[0], announce: true);
+        EquipCard(drawn[0], announce: true);
     }
 
     private void SpawnFloatingText(Vector2 worldPosition, string text, Color color)
