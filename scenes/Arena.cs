@@ -40,6 +40,7 @@ public partial class Arena : Node2D
     private static readonly Color HpGoodColor = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color HpBadColor = new(0.611765f, 0.231373f, 0.231373f);
     private static readonly Color CooldownFillColor = new(0.690196f, 0.552941f, 0.239216f);
+    private static readonly Color DisabledAbilityModulate = new(1f, 1f, 1f, 0.5f);
 
     private static readonly (Ability Ability, string Label)[] StatOrder =
     {
@@ -69,6 +70,7 @@ public partial class Arena : Node2D
 
     private readonly Dictionary<string, ProgressBar> _cooldownBars = new();
     private readonly Dictionary<string, Label> _abilityNameLabels = new();
+    private readonly Dictionary<string, Control> _abilityPanels = new();
 
     private double _survivalSeconds;
     private int _totalWaves = 10;
@@ -341,9 +343,22 @@ public partial class Arena : Node2D
         };
     }
 
+    /// <summary>
+    /// Fähigkeiten-Badge in der Fähigkeiten-Leiste - anklickbar, um genau
+    /// diese Fähigkeit (alle Instanzen, siehe Player.ToggleAbility) ein-
+    /// oder auszuschalten. Gedacht, damit einzelne Effekte isoliert
+    /// getestet werden können oder alle Angriffe deaktiviert werden können,
+    /// um kontrolliert Schaden zu nehmen - bewusst keine reine
+    /// Testfunktion, siehe Player.ToggleAbility.
+    /// </summary>
     private void AddAbilityBadge(CardDefinition card)
     {
-        var panel = new PanelContainer { ThemeTypeVariation = "CardPanel" };
+        var panel = new PanelContainer
+        {
+            ThemeTypeVariation = "CardPanel",
+            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+        };
+        panel.GuiInput += @event => OnAbilityBadgeInput(card, @event);
 
         var vbox = new VBoxContainer();
         vbox.AddThemeConstantOverride("separation", 4);
@@ -373,6 +388,7 @@ public partial class Arena : Node2D
 
         _cooldownBars[card.Id] = bar;
         _abilityNameLabels[card.Id] = label;
+        _abilityPanels[card.Id] = panel;
         UpdateAbilityLabel(card);
     }
 
@@ -384,7 +400,25 @@ public partial class Arena : Node2D
         }
 
         int count = _player.CountEquipped(card.Id);
-        label.Text = count > 1 ? $"{card.DisplayName}  ×{count}" : card.DisplayName;
+        string baseText = count > 1 ? $"{card.DisplayName}  ×{count}" : card.DisplayName;
+        bool enabled = _player.IsAbilityEnabled(card.Id);
+        label.Text = enabled ? baseText : $"{baseText} (aus)";
+
+        if (_abilityPanels.TryGetValue(card.Id, out var panel))
+        {
+            panel.Modulate = enabled ? Colors.White : DisabledAbilityModulate;
+        }
+    }
+
+    private void OnAbilityBadgeInput(CardDefinition card, InputEvent @event)
+    {
+        if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
+        {
+            return;
+        }
+
+        _player.ToggleAbility(card.Id);
+        UpdateAbilityLabel(card);
     }
 
     private async void OnAbilityGained(CardDefinition card)

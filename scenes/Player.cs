@@ -54,6 +54,8 @@ public partial class Player : Node2D
         public float Cooldown { get; }
 
         public float Timer;
+
+        public bool Enabled = true;
     }
 
     /// <summary>Feuert bei jeder gezogenen Karte (auch Duplikaten) - für die Level-up-Anzeige.</summary>
@@ -254,6 +256,11 @@ public partial class Player : Node2D
         // auslöst, wenn das mitten in dieser Schleife passiert.
         foreach (var ability in _abilities.ToList())
         {
+            if (!ability.Enabled)
+            {
+                continue;
+            }
+
             ability.Timer -= delta;
             if (ability.Timer <= 0f)
             {
@@ -262,6 +269,26 @@ public partial class Player : Node2D
             }
         }
     }
+
+    /// <summary>
+    /// Aktiviert/deaktiviert alle Instanzen einer Fähigkeit (Klick auf das
+    /// Badge in der Fähigkeiten-Leiste, siehe Arena.AddAbilityBadge). Der
+    /// Cooldown pausiert währenddessen, statt weiterzulaufen. Gedacht, um
+    /// einzelne Effekte isoliert zu testen oder alle Angriffe auszuschalten,
+    /// um kontrolliert Schaden zu nehmen - bewusst keine reine Testfunktion,
+    /// soll später auch Spielern helfen, Builds auszuprobieren.
+    /// </summary>
+    public void ToggleAbility(string cardId)
+    {
+        bool newState = !IsAbilityEnabled(cardId);
+        foreach (var ability in _abilities.Where(ability => ability.Card.Id == cardId))
+        {
+            ability.Enabled = newState;
+        }
+    }
+
+    public bool IsAbilityEnabled(string cardId) =>
+        _abilities.FirstOrDefault(ability => ability.Card.Id == cardId)?.Enabled ?? true;
 
     private void TriggerAbility(ActiveAbility ability)
     {
