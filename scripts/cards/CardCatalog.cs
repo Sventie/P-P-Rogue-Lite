@@ -57,6 +57,8 @@ public static class CardCatalog
         bench.Add(new ExplosiveHeilungCard());
         bench.Add(new AdrenalinCard());
         bench.Add(new GiftklingeCard());
+        bench.Add(new BrandCard());
+        bench.Add(new BlutungCard());
 
         return bench;
     }
@@ -73,5 +75,7 @@ public static class CardCatalog
         new ExplosiveHeilungCard(),
         new AdrenalinCard(),
         new GiftklingeCard(),
+        new BrandCard(),
+        new BlutungCard(),
     };
 }

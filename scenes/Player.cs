@@ -37,6 +37,13 @@ public partial class Player : Node2D
     private const int GiftklingeChancePercent = 50; // Giftklinge (Issue #14: erste Nutzung des Gift-Status-Effekts)
     private const int PoisonDamagePerTick = 2;
     private const float PoisonDuration = 4f; // 4 Ticks bei Enemy.PoisonTickInterval = 1s
+    private const int BrandChancePercent = 50; // Brand (Issue #23: zweite Nutzung, stackende Intensität)
+    private const int BurnDamagePerStackPerTick = 2;
+    private const float BurnDuration = 4f;
+    private const int BurnMaxStacks = 3;
+    private const int BlutungChancePercent = 50; // Blutung (Issue #24: dritte Nutzung, skaliert mit maximaler HP)
+    private const float BleedPercentPerTick = 0.05f; // 5% der maximalen HP pro Tick
+    private const float BleedDuration = 4f;
 
     private static readonly Color BodyColor = new(0.690196f, 0.552941f, 0.239216f);
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
@@ -321,7 +328,16 @@ public partial class Player : Node2D
             case "wuchtschlag":
             {
                 int fullModifier = Character.Stats.Modifier(Ability.Strength);
-                ResolveMeleeAttack(fullModifier - 2 + _bonusAttackRoll, damageDiceCount: 2, damageDie: 8, damageBonus: fullModifier);
+                var target = ResolveMeleeAttack(fullModifier - 2 + _bonusAttackRoll, damageDiceCount: 2, damageDie: 8, damageBonus: fullModifier);
+
+                if (target is not null)
+                {
+                    foreach (var modifierId in ModifiersFor("wuchtschlag"))
+                    {
+                        ApplyCoupledEffect(modifierId, target);
+                    }
+                }
+
                 break;
             }
 
@@ -370,6 +386,22 @@ public partial class Player : Node2D
                 if (target is not null && Dice.Roll(100) <= GiftklingeChancePercent)
                 {
                     target.ApplyPoison(PoisonDamagePerTick, PoisonDuration);
+                }
+
+                break;
+
+            case "brand":
+                if (target is not null && Dice.Roll(100) <= BrandChancePercent)
+                {
+                    target.ApplyBurn(BurnDamagePerStackPerTick, BurnDuration, BurnMaxStacks);
+                }
+
+                break;
+
+            case "blutung":
+                if (target is not null && Dice.Roll(100) <= BlutungChancePercent)
+                {
+                    target.ApplyBleed(BleedPercentPerTick, BleedDuration);
                 }
 
                 break;
