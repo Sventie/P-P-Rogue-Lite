@@ -18,6 +18,8 @@ public sealed class WiederkehrCard : CardDefinition
 
     public override string CardType => "Fähigkeit";
 
+    public override CardRarity Rarity => CardRarity.Diamant;
+
     public override string Description => "Deine verworfenen Karten kehren zurück. Mischt die komplette Ablage zurück in deinen Nachziehstapel.";
 
     public override string RequirementText => "Kein Effekt bei leerer Ablage";

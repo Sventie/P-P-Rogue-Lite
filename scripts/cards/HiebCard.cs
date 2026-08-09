@@ -11,6 +11,8 @@ public sealed class HiebCard : CardDefinition
 
     public override string CardType => "Angriff";
 
+    public override CardRarity Rarity => CardRarity.Bronze;
+
     public override string Description => "Ein gezielter Schwerthieb.";
 
     public override string RequirementText => "W20 + STR gegen RK";

@@ -13,6 +13,22 @@ public enum CardKind
     Modifier,
 }
 
+/// <summary>
+/// Seltenheitsstufe einer Karte (Issue #4: Card Shop) - entspricht 1:1 den
+/// Kartenpack-Stufen (PPRogueLite.Shop.CardPackCatalog), aus denen beim
+/// Öffnen eines Packs gezogen wird. Bewusst abstrakt auf CardDefinition
+/// (nicht virtual mit Default) - jede Karte muss explizit eine Stufe
+/// bekommen, es gibt keinen sinnvollen impliziten Standardwert.
+/// </summary>
+public enum CardRarity
+{
+    Bronze,
+    Silber,
+    Gold,
+    Platin,
+    Diamant,
+}
+
 public abstract class CardDefinition
 {
     public abstract string Id { get; }
@@ -24,6 +40,8 @@ public abstract class CardDefinition
     public abstract string Description { get; }
 
     public abstract string RequirementText { get; }
+
+    public abstract CardRarity Rarity { get; }
 
     public virtual bool IsExhaust => false;
 

@@ -11,6 +11,8 @@ public sealed class FinteCard : CardDefinition
 
     public override string CardType => "Manöver";
 
+    public override CardRarity Rarity => CardRarity.Silber;
+
     public override string Description => "Du täuschst den Gegner. Bei Erfolg hat deine nächste Angriffskarte Vorteil (zweimal würfeln, besseres Ergebnis).";
 
     public override string RequirementText => "W20 + GES gegen 10";

@@ -22,6 +22,8 @@ public sealed class GiftklingeCard : CardDefinition
 
     public override string CoupledCardId => "hieb";
 
+    public override CardRarity Rarity => CardRarity.Gold;
+
     public override string Description => "Deine Klinge trieft von Gift. Hieb hat eine Chance, das getroffene Ziel zu vergiften und über Zeit Schaden zuzufügen.";
 
     public override string RequirementText => "Gekoppelt an Hieb";

@@ -10,6 +10,8 @@ public sealed class AtemHolenCard : CardDefinition
 
     public override string CardType => "Erholung";
 
+    public override CardRarity Rarity => CardRarity.Silber;
+
     public override string Description => "Ein Moment der Sammlung. Einmal pro Kampf: heile dich.";
 
     public override string RequirementText => "W10 + Stufe (einmalig)";

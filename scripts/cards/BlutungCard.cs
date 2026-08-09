@@ -24,6 +24,8 @@ public sealed class BlutungCard : CardDefinition
 
     public override string CoupledCardId => "wuchtschlag";
 
+    public override CardRarity Rarity => CardRarity.Platin;
+
     public override string Description => "Dein Wuchtschlag reißt tiefe Wunden. Das getroffene Ziel blutet - der Schaden richtet sich nach seiner maximalen Lebenskraft, wirkt also besonders gegen zähe Gegner.";
 
     public override string RequirementText => "Gekoppelt an Wuchtschlag";

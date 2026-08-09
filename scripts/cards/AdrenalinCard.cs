@@ -19,6 +19,8 @@ public sealed class AdrenalinCard : CardDefinition
 
     public override CardKind Kind => CardKind.Modifier;
 
+    public override CardRarity Rarity => CardRarity.Platin;
+
     public override string Description => "Ein kritischer Treffer setzt Adrenalin frei. Nach einem kritischen Treffer bist du für kurze Zeit schneller.";
 
     public override string RequirementText => "Reagiert auf kritische Treffer";

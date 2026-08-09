@@ -18,6 +18,8 @@ public sealed class KampfrauschCard : CardDefinition
 
     public override CardKind Kind => CardKind.Modifier;
 
+    public override CardRarity Rarity => CardRarity.Gold;
+
     public override string Description => "Du kämpfst mit wilder Entschlossenheit. Dauerhaft +1 auf alle Angriffswürfe.";
 
     public override string RequirementText => "Passiv, kein Wurf nötig";

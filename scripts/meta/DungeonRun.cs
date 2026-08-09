@@ -86,5 +86,11 @@ public static class DungeonRun
         SavedDrawPile = new List<CardDefinition>();
         SavedDiscardPile = new List<CardDefinition>();
         SavedEquippedCards = new List<CardDefinition>();
+
+        // Shop-Sonderangebote würfeln sich neu, sobald ein Dungeon endet
+        // (Issue #4) - der Shop ist nur über die Taverne erreichbar, nicht
+        // über das Lager zwischen zwei Stages, bleiben also für die Dauer
+        // eines Dungeons fest.
+        ShopState.RerollSpecialOffers();
     }
 }

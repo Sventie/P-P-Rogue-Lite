@@ -20,6 +20,8 @@ public sealed class ErinnerungCard : CardDefinition
 
     public override string CardType => "Fähigkeit";
 
+    public override CardRarity Rarity => CardRarity.Diamant;
+
     public override string Description => "Du erinnerst dich an eine verworfene Karte. Wähle eine Karte aus deiner Ablage und rüste sie erneut aus.";
 
     public override string RequirementText => "Kein Effekt bei leerer Ablage";

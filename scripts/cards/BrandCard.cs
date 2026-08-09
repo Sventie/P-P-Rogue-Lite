@@ -25,6 +25,8 @@ public sealed class BrandCard : CardDefinition
 
     public override string CoupledCardId => "hieb";
 
+    public override CardRarity Rarity => CardRarity.Platin;
+
     public override string Description => "Dein Hieb entfacht Flammen. Trifft er, entzündet er das Ziel - wiederholte Treffer lassen das Feuer stärker brennen.";
 
     public override string RequirementText => "Gekoppelt an Hieb";

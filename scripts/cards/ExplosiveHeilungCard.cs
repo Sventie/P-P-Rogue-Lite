@@ -21,6 +21,8 @@ public sealed class ExplosiveHeilungCard : CardDefinition
 
     public override string CoupledCardId => "atemholen";
 
+    public override CardRarity Rarity => CardRarity.Platin;
+
     public override string Description => "Deine Heilung entlädt sich nach außen. Atem holen verursacht zusätzlich Schaden an Gegnern in der Nähe.";
 
     public override string RequirementText => "Gekoppelt an Atem holen";

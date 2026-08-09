@@ -1,9 +1,9 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scenes/Hub.cs" id="1"]
+[ext_resource type="Script" path="res://scenes/Shop.cs" id="1"]
 [ext_resource type="Theme" path="res://theme/game_theme.tres" id="2"]
 
-[node name="Hub" type="Control"]
+[node name="Shop" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -32,13 +32,13 @@ theme_override_constants/separation = 14
 [node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"TitleLabel"
-text = "Die Taverne"
+text = "Shop"
 horizontal_alignment = 1
 
 [node name="SubtitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"SubtitleLabel"
-text = "Ruhepunkt zwischen den Runs"
+text = "Karten, Packs und mehr für Gold"
 horizontal_alignment = 1
 
 [node name="GoldLabel" type="Label" parent="MarginContainer/VBoxContainer"]
@@ -47,33 +47,31 @@ theme_type_variation = &"DeskLabel"
 text = "Gold: 0"
 horizontal_alignment = 1
 
-[node name="MenuCenter" type="CenterContainer" parent="MarginContainer/VBoxContainer"]
+[node name="ContentScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
 
-[node name="MenuPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/MenuCenter"]
+[node name="ContentBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ContentScroll"]
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
 
-[node name="MenuVBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel"]
+[node name="BackButton" type="Button" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 12
+size_flags_horizontal = 4
+text = "Zurück zur Taverne"
 
-[node name="EnterDungeonButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Dungeon betreten"
-
-[node name="ManageCardsButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Karten managen"
-
-[node name="ManagePartyButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Gruppe managen"
-
-[node name="OpenShopButton" type="Button" parent="MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox"]
-custom_minimum_size = Vector2(280, 0)
-layout_mode = 2
-text = "Shop"
+[node name="PackOpenLayer" type="MarginContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 48

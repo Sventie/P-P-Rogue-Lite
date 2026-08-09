@@ -10,6 +10,8 @@ public sealed class ParadeCard : CardDefinition
 
     public override string CardType => "Reaktion";
 
+    public override CardRarity Rarity => CardRarity.Bronze;
+
     public override string Description => "Du gehst in Deckung. Deine Rüstungsklasse steigt bis zu deinem nächsten Zug um 4.";
 
     public override string RequirementText => "Kein Wurf nötig";
