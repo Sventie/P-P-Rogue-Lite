@@ -20,9 +20,14 @@ public sealed class Deck
     /// Reihenfolge, die beim Wiederherstellen nicht erneut gemischt werden
     /// darf (siehe DungeonRun/Player.SaveProgress).
     /// </summary>
-    public Deck(IEnumerable<CardDefinition> startingCards, bool shuffleOnCreate = true)
+    public Deck(IEnumerable<CardDefinition> startingCards, bool shuffleOnCreate = true, IEnumerable<CardDefinition>? discardedCards = null)
     {
         _drawPile.AddRange(startingCards);
+        if (discardedCards is not null)
+        {
+            _discardPile.AddRange(discardedCards);
+        }
+
         if (shuffleOnCreate)
         {
             Shuffle(_drawPile);
@@ -33,7 +38,15 @@ public sealed class Deck
 
     public IReadOnlyList<CardDefinition> DiscardPile => _discardPile;
 
-    public List<CardDefinition> DrawHand(int size, Action<string, LogTag>? log = null)
+    /// <summary>
+    /// allowReshuffleFromDiscard steuert, ob ein leerer Nachziehstapel
+    /// automatisch aus der Ablage neu gemischt wird. Der alte rundenbasierte
+    /// Kampf (Main.cs/CombatEngine) braucht das pro Zug; die Echtzeit-Arena
+    /// (Issue #15) übergibt hier bewusst false - Karten auf der Ablage
+    /// sollen für den Rest des Runs unerreichbar bleiben, bis eine künftige
+    /// Karte den Stapel gezielt zurückmischt (siehe Issue-Backlog/CLAUDE.md).
+    /// </summary>
+    public List<CardDefinition> DrawHand(int size, Action<string, LogTag>? log = null, bool allowReshuffleFromDiscard = true)
     {
         var hand = new List<CardDefinition>();
 
@@ -41,7 +54,7 @@ public sealed class Deck
         {
             if (_drawPile.Count == 0)
             {
-                if (_discardPile.Count == 0)
+                if (!allowReshuffleFromDiscard || _discardPile.Count == 0)
                 {
                     break;
                 }
@@ -75,6 +88,12 @@ public sealed class Deck
 
             _discardPile.Add(hand[i]);
         }
+    }
+
+    /// <summary>Legt eine einzelne Karte auf die Ablage (Issue #15: nicht gewählte Karte bei der Level-up-Auswahl).</summary>
+    public void Discard(CardDefinition card)
+    {
+        _discardPile.Add(card);
     }
 
     private void Shuffle(List<CardDefinition> cards)

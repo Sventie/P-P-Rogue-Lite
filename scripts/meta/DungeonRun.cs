@@ -41,6 +41,8 @@ public static class DungeonRun
 
     public static List<CardDefinition> SavedDrawPile { get; private set; } = new();
 
+    public static List<CardDefinition> SavedDiscardPile { get; private set; } = new();
+
     public static List<CardDefinition> SavedEquippedCards { get; private set; } = new();
 
     public static StageNode CurrentNode => Map!.GetNode(CurrentNodeId);
@@ -64,12 +66,13 @@ public static class DungeonRun
         CurrentStage++;
     }
 
-    public static void SaveProgress(int hp, int xp, int level, List<CardDefinition> drawPile, List<CardDefinition> equippedCards)
+    public static void SaveProgress(int hp, int xp, int level, List<CardDefinition> drawPile, List<CardDefinition> discardPile, List<CardDefinition> equippedCards)
     {
         SavedHp = hp;
         SavedXp = xp;
         SavedLevel = level;
         SavedDrawPile = drawPile;
+        SavedDiscardPile = discardPile;
         SavedEquippedCards = equippedCards;
         HasProgress = true;
     }
@@ -81,6 +84,7 @@ public static class DungeonRun
         CurrentNodeId = 0;
         HasProgress = false;
         SavedDrawPile = new List<CardDefinition>();
+        SavedDiscardPile = new List<CardDefinition>();
         SavedEquippedCards = new List<CardDefinition>();
     }
 }

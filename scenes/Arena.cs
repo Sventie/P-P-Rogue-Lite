@@ -2,6 +2,7 @@ namespace PPRogueLite;
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 using PPRogueLite.Cards;
 using PPRogueLite.Character;
@@ -108,6 +109,7 @@ public partial class Arena : Node2D
         _player = GetNode<Player>("Player");
         _player.AbilityGained += OnAbilityGained;
         _player.NewAbilityTypeUnlocked += AddAbilityBadge;
+        _player.CardChoiceOffered += OnCardChoiceOffered;
 
         _waveTransitionTimer = GetNode<Timer>("WaveTransitionTimer");
         _waveTransitionTimer.Timeout += OnWaveTransitionTimeout;
@@ -437,10 +439,7 @@ public partial class Arena : Node2D
         };
         row.AddThemeConstantOverride("separation", 24);
 
-        var deckColumn = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
-        deckColumn.AddThemeConstantOverride("separation", 12);
-        deckColumn.AddChild(BuildPileOverview("Nachziehstapel", _player.CountInDrawPile));
-        deckColumn.AddChild(BuildPileOverview("Bereits gezogen", _player.CountEquipped));
+        var deckColumn = BuildDeckOverviewColumn();
 
         var cardColumn = new VBoxContainer
         {
@@ -474,6 +473,83 @@ public partial class Arena : Node2D
 
         row.QueueFree();
         SetWorldPaused(false);
+    }
+
+    /// <summary>
+    /// Level-up mit echter Kartenwahl (Issue #15): zeigt alle gezogenen
+    /// Karten nebeneinander, ein Klick auf eine Karte (CardView.Clicked,
+    /// bisher ungenutzt seit dem Pivot zu Echtzeit) entscheidet direkt -
+    /// kein zusätzlicher "Weiter"-Button nötig. Die nicht gewählten Karten
+    /// wandern über Player.ResolveCardChoice auf die Ablage.
+    /// </summary>
+    private async void OnCardChoiceOffered(IReadOnlyList<CardDefinition> candidates)
+    {
+        SetWorldPaused(true);
+
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+            SizeFlagsVertical = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+        };
+        row.AddThemeConstantOverride("separation", 24);
+
+        var deckColumn = BuildDeckOverviewColumn();
+
+        var choiceColumn = new VBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        choiceColumn.AddThemeConstantOverride("separation", 12);
+        choiceColumn.AddChild(new Label
+        {
+            Text = "Wähle eine Karte",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = "ColumnHeaderLabel",
+        });
+
+        var cardsRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        cardsRow.AddThemeConstantOverride("separation", 16);
+        choiceColumn.AddChild(cardsRow);
+
+        var selection = new TaskCompletionSource<CardDefinition>();
+        foreach (var candidate in candidates)
+        {
+            var cardView = _cardViewScene.Instantiate<CardView>();
+            cardsRow.AddChild(cardView);
+            cardView.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
+            cardView.Populate(candidate);
+            cardView.Clicked += () => selection.TrySetResult(candidate);
+        }
+
+        var sheetColumn = BuildCharacterSheet();
+        sheetColumn.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+
+        row.AddChild(deckColumn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand });
+        row.AddChild(choiceColumn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand });
+        row.AddChild(sheetColumn);
+
+        _levelUpLayer.AddChild(row);
+
+        var chosen = await selection.Task;
+        _player.ResolveCardChoice(chosen, candidates);
+        UpdateAbilityLabel(chosen);
+
+        row.QueueFree();
+        SetWorldPaused(false);
+    }
+
+    /// <summary>Linke Spalte des Level-up-Screens: Nachziehstapel/Ausgerüstet/Ablage-Übersicht, gemeinsam genutzt von OnAbilityGained und OnCardChoiceOffered.</summary>
+    private VBoxContainer BuildDeckOverviewColumn()
+    {
+        var deckColumn = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        deckColumn.AddThemeConstantOverride("separation", 12);
+        deckColumn.AddChild(BuildPileOverview("Nachziehstapel", _player.CountInDrawPile));
+        deckColumn.AddChild(BuildPileOverview("Bereits gezogen", _player.CountEquipped));
+        deckColumn.AddChild(BuildPileOverview("Ablage", _player.CountInDiscardPile));
+        return deckColumn;
     }
 
     /// <summary>

@@ -25,6 +25,7 @@ public partial class Player : Node2D
     private const float MeleeRange = 90f;
     private const float Radius = 16f;
     private const int XpPerLevel = 2; // Test-Balance-Wert fuer schnelleres Testen (1 XP pro Kill)
+    private const int LevelUpCardChoices = 2; // Issue #15: so viele Karten werden pro Level-up zur Auswahl gezogen
     private const float ParadeBonus = 4f;
     private const float ParadeDuration = 2f;
 
@@ -58,11 +59,14 @@ public partial class Player : Node2D
         public bool Enabled = true;
     }
 
-    /// <summary>Feuert bei jeder gezogenen Karte (auch Duplikaten) - für die Level-up-Anzeige.</summary>
+    /// <summary>Feuert bei jeder gezogenen Karte (auch Duplikaten) - für die Level-up-Anzeige. Feuert NICHT, wenn stattdessen CardChoiceOffered feuert (siehe LevelUp).</summary>
     public event Action<CardDefinition>? AbilityGained;
 
     /// <summary>Feuert nur, wenn der gezogene Kartentyp noch nicht aktiv war - für die Fähigkeiten-Leiste.</summary>
     public event Action<CardDefinition>? NewAbilityTypeUnlocked;
+
+    /// <summary>Feuert bei einem Level-up, wenn mehrere Karten zur Auswahl gezogen wurden (Issue #15) - der Aufrufer muss ResolveCardChoice mit der Wahl aufrufen.</summary>
+    public event Action<IReadOnlyList<CardDefinition>>? CardChoiceOffered;
 
     public PlayerCharacter Character { get; private set; } = null!;
 
@@ -126,7 +130,7 @@ public partial class Player : Node2D
             Character.Hp = DungeonRun.SavedHp;
             _xp = DungeonRun.SavedXp;
             _level = DungeonRun.SavedLevel;
-            _runDeck = new Deck(DungeonRun.SavedDrawPile, shuffleOnCreate: false);
+            _runDeck = new Deck(DungeonRun.SavedDrawPile, shuffleOnCreate: false, discardedCards: DungeonRun.SavedDiscardPile);
 
             foreach (var card in DungeonRun.SavedEquippedCards)
             {
@@ -156,6 +160,7 @@ public partial class Player : Node2D
             _xp,
             _level,
             new List<CardDefinition>(_runDeck.DrawPile),
+            new List<CardDefinition>(_runDeck.DiscardPile),
             equippedCards);
     }
 
@@ -520,6 +525,9 @@ public partial class Player : Node2D
     /// <summary>Wie viele Karten dieses Typs noch im laufeigenen Nachziehstapel liegen.</summary>
     public int CountInDrawPile(string cardId) => _runDeck.DrawPile.Count(card => card.Id == cardId);
 
+    /// <summary>Wie viele Karten dieses Typs auf der Ablage liegen (Issue #15: nicht gewählte Level-up-Karten).</summary>
+    public int CountInDiscardPile(string cardId) => _runDeck.DiscardPile.Count(card => card.Id == cardId);
+
     /// <summary>
     /// Fortschritt (0..1) bis zum nächsten Auslösen der ersten aktiven
     /// Fähigkeit mit dieser Karten-Id - für die Cooldown-Anzeige in der
@@ -557,17 +565,54 @@ public partial class Player : Node2D
         }
     }
 
+    /// <summary>
+    /// Zieht LevelUpCardChoices Karten (Issue #15). Bei einer echten Auswahl
+    /// (mehr als eine Karte gezogen) entscheidet der Spieler über
+    /// CardChoiceOffered/ResolveCardChoice; wird nur eine Karte gezogen
+    /// (Nachziehstapel fast leer), gibt es keine echte Wahl - dann wie
+    /// bisher automatisch ausrüsten. Wird der Nachziehstapel dabei leer
+    /// gezogen (kein Deck-Exhaustion-Handling, siehe Issue #20), bleibt der
+    /// Level-up ohne neue Fähigkeit.
+    /// </summary>
     private void LevelUp()
     {
         _level++;
 
-        var drawn = _runDeck.DrawHand(1);
+        var drawn = _runDeck.DrawHand(LevelUpCardChoices, allowReshuffleFromDiscard: false);
         if (drawn.Count == 0)
         {
             return;
         }
 
-        EquipCard(drawn[0], announce: true);
+        if (drawn.Count == 1)
+        {
+            EquipCard(drawn[0], announce: true);
+            return;
+        }
+
+        CardChoiceOffered?.Invoke(drawn);
+    }
+
+    /// <summary>
+    /// Schließt eine per CardChoiceOffered angebotene Level-up-Auswahl ab:
+    /// die gewählte Karte wird ausgerüstet, die übrigen wandern dauerhaft
+    /// auf die Ablage (Issue #15) - bis eine künftige Karte den Stapel
+    /// gezielt zurückmischt (siehe Issue-Backlog), bleiben sie für den Rest
+    /// des Runs unerreichbar.
+    /// </summary>
+    public void ResolveCardChoice(CardDefinition chosen, IReadOnlyList<CardDefinition> candidates)
+    {
+        foreach (var card in candidates)
+        {
+            if (card == chosen)
+            {
+                EquipCard(card, announce: false);
+            }
+            else
+            {
+                _runDeck.Discard(card);
+            }
+        }
     }
 
     private void SpawnFloatingText(Vector2 worldPosition, string text, Color color)
