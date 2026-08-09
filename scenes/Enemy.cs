@@ -29,12 +29,14 @@ public partial class Enemy : Node2D
     private const float SlowDuration = 2f;
     private const float SlowMultiplier = 0.5f;
     private const float SummonScatterRadius = 60f;
+    private const float PoisonTickInterval = 1f; // Issue #14: Sekunden zwischen zwei Gift-Ticks
 
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
     private static readonly Color SlowColor = new(0.45f, 0.25f, 0.55f);
     private static readonly Color HpBarBackground = new(0f, 0f, 0f, 0.5f);
     private static readonly Color HpBarFill = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color SlamTelegraphColor = new(0.611765f, 0.15f, 0.15f, 0.35f);
+    private static readonly Color PoisonColor = new(0.3f, 0.75f, 0.25f);
 
     private enum SlamState
     {
@@ -55,6 +57,9 @@ public partial class Enemy : Node2D
     private SlamState _slamState = SlamState.Idle;
     private float _slamTelegraphTimer;
     private Vector2 _slamDirection = Vector2.Right;
+    private float _poisonTimer;
+    private float _poisonTickTimer;
+    private int _poisonDamagePerTick;
     private bool _disabled;
     private PackedScene _floatingTextScene = null!;
 
@@ -115,6 +120,11 @@ public partial class Enemy : Node2D
             };
             DrawColoredPolygon(points, SlamTelegraphColor);
         }
+
+        if (_poisonTimer > 0f)
+        {
+            DrawArc(Vector2.Zero, radius + 4f, 0f, Mathf.Tau, 24, PoisonColor, 3f, true);
+        }
     }
 
     public override void _Process(double delta)
@@ -125,6 +135,12 @@ public partial class Enemy : Node2D
         }
 
         float dt = (float)delta;
+        UpdatePoison(dt);
+        if (Stats.IsDefeated)
+        {
+            return;
+        }
+
         switch (_definition.Movement)
         {
             case EnemyMovement.Melee:
@@ -379,6 +395,50 @@ public partial class Enemy : Node2D
         {
             _player?.ApplySlow(SlowDuration, SlowMultiplier);
             SpawnFloatingText(SlowColor, "Verlangsamt!");
+        }
+    }
+
+    /// <summary>
+    /// Wendet einen Gift-Effekt an bzw. erneuert einen bestehenden (Issue
+    /// #14, ausgelöst z. B. über die Giftklinge-Modifikatorkarte): pro
+    /// PoisonTickInterval automatischer Schaden über duration Sekunden.
+    /// Kein Stacking - eine erneute Anwendung überschreibt Dauer und
+    /// Schaden pro Tick, gleiches Muster wie Player.ApplySlow/ApplyHaste.
+    /// </summary>
+    public void ApplyPoison(int damagePerTick, float duration)
+    {
+        bool wasPoisoned = _poisonTimer > 0f;
+        _poisonDamagePerTick = damagePerTick;
+        _poisonTimer = duration;
+        _poisonTickTimer = PoisonTickInterval;
+
+        if (!wasPoisoned)
+        {
+            QueueRedraw();
+        }
+    }
+
+    private void UpdatePoison(float delta)
+    {
+        if (_poisonTimer <= 0f)
+        {
+            return;
+        }
+
+        _poisonTimer -= delta;
+        _poisonTickTimer -= delta;
+
+        if (_poisonTickTimer <= 0f)
+        {
+            _poisonTickTimer = PoisonTickInterval;
+            TakeDamage(_poisonDamagePerTick);
+            SpawnFloatingText(PoisonColor, _poisonDamagePerTick.ToString());
+        }
+
+        if (_poisonTimer <= 0f)
+        {
+            _poisonTimer = 0f;
+            QueueRedraw();
         }
     }
 

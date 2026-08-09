@@ -34,6 +34,9 @@ public partial class Player : Node2D
     private const float HasteMultiplier = 1.3f;
     private const float ExplosiveHeilungRadius = 140f; // Explosive Heilung
     private const int ExplosiveHeilungDamage = 6;
+    private const int GiftklingeChancePercent = 50; // Giftklinge (Issue #14: erste Nutzung des Gift-Status-Effekts)
+    private const int PoisonDamagePerTick = 2;
+    private const float PoisonDuration = 4f; // 4 Ticks bei Enemy.PoisonTickInterval = 1s
 
     private static readonly Color BodyColor = new(0.690196f, 0.552941f, 0.239216f);
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
@@ -302,7 +305,16 @@ public partial class Player : Node2D
             case "hieb":
             {
                 int modifier = Character.Stats.Modifier(Ability.Strength);
-                ResolveMeleeAttack(modifier + _bonusAttackRoll, damageDiceCount: 1, damageDie: 8, damageBonus: modifier);
+                var target = ResolveMeleeAttack(modifier + _bonusAttackRoll, damageDiceCount: 1, damageDie: 8, damageBonus: modifier);
+
+                if (target is not null)
+                {
+                    foreach (var modifierId in ModifiersFor("hieb"))
+                    {
+                        ApplyCoupledEffect(modifierId, target);
+                    }
+                }
+
                 break;
             }
 
@@ -339,13 +351,27 @@ public partial class Player : Node2D
         }
     }
 
-    /// <summary>Wirkung eines an eine Aktionskarte gekoppelten Modifikators (Issue #12), ausgelöst wenn die Zielkarte auslöst.</summary>
-    private void ApplyCoupledEffect(string modifierId)
+    /// <summary>
+    /// Wirkung eines an eine Aktionskarte gekoppelten Modifikators (Issue
+    /// #12), ausgelöst wenn die Zielkarte auslöst. target ist nur bei
+    /// Effekten gesetzt, die ein konkretes Trefferziel brauchen (z. B.
+    /// Giftklinge, Issue #14) - bei reinen Selbst-/AOE-Effekten (Explosive
+    /// Heilung) bleibt es null.
+    /// </summary>
+    private void ApplyCoupledEffect(string modifierId, Enemy? target = null)
     {
         switch (modifierId)
         {
             case "explosive_heilung":
                 DealAoeDamage(ExplosiveHeilungRadius, ExplosiveHeilungDamage);
+                break;
+
+            case "giftklinge":
+                if (target is not null && Dice.Roll(100) <= GiftklingeChancePercent)
+                {
+                    target.ApplyPoison(PoisonDamagePerTick, PoisonDuration);
+                }
+
                 break;
         }
     }
@@ -369,12 +395,13 @@ public partial class Player : Node2D
         }
     }
 
-    private void ResolveMeleeAttack(int attackModifier, int damageDiceCount, int damageDie, int damageBonus)
+    /// <summary>Löst einen Nahkampfangriff auf den nächsten Gegner in Reichweite auf. Gibt das getroffene Ziel zurück (null bei Fehlschlag/keinem Ziel) - Aufrufer nutzen das z. B. für gekoppelte Modifikatoren, die ein konkretes Trefferziel brauchen (Issue #14).</summary>
+    private Enemy? ResolveMeleeAttack(int attackModifier, int damageDiceCount, int damageDie, int damageBonus)
     {
         var target = FindNearestEnemyInRange();
         if (target is null)
         {
-            return;
+            return null;
         }
 
         int roll = Dice.Roll(20);
@@ -391,7 +418,7 @@ public partial class Player : Node2D
         if (!hit)
         {
             SpawnFloatingText(target.Position, "Verfehlt", MissColor);
-            return;
+            return null;
         }
 
         int damage = damageBonus;
@@ -408,6 +435,8 @@ public partial class Player : Node2D
         {
             OnCriticalHit();
         }
+
+        return target;
     }
 
     /// <summary>Reaktiver Modifikator-Hook (Issue #12): wird bei jedem kritischen Treffer aufgerufen.</summary>
