@@ -298,7 +298,7 @@ Noch nicht in der echten Godot-Umgebung getestet.
 
 ## Offene Punkte / nächste Schritte
 
-**GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#24). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer). Issues #14–#24 sind neu entstanden aus vorher nur hier im Dokument notierten offenen Punkten/Entscheidungen bzw. als Fast-Follows während der Umsetzung – siehe jeweilige Issue-Beschreibung für Details, hier nur kurz zusammengefasst:
+**GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#25). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer). Issues #14–#25 sind neu entstanden aus vorher nur hier im Dokument notierten offenen Punkten/Entscheidungen bzw. als Fast-Follows während der Umsetzung – siehe jeweilige Issue-Beschreibung für Details, hier nur kurz zusammengefasst:
 
 1. ~~**#2 Add Stage logic**~~ – **umgesetzt** (siehe Echtzeit-Arena-Abschnitt oben: Stage aus mehreren Wellen, Welle N = N Gegner, Gold-Belohnung bei Abschluss). Noch nicht vom Nutzer in Godot gegengeprüft.
 2. ~~**#3 Add Dungeon logic**~~ – **umgesetzt** (siehe Dungeon-Struktur-Abschnitt oben: mehrere Stages pro Dungeon, neues Lager `Camp.tscn` als Zwischenstopp *innerhalb* eines Dungeons, Taverne/Hub nur noch *zwischen* Dungeons, Charakter-Fortschritt über `DungeonRun` erhalten). Noch nicht vom Nutzer in Godot gegengeprüft.
@@ -312,16 +312,17 @@ Noch nicht in der echten Godot-Umgebung getestet.
 10. ~~**#15 Let the player choose among multiple drawn cards on level-up**~~ – **umgesetzt** (siehe Kartenauswahl-Abschnitt oben: 2 Karten pro Level-up, Klick auf eine `CardView` entscheidet, nicht gewählte Karte wandert dauerhaft auf eine neue Ablage – `Deck.Discard`/`DrawHand(..., allowReshuffleFromDiscard: false)`). Daraus zwei neue Fast-Follow-Issues: **#21** (Karte mischt Ablage zurück ins Deck) und **#22** (Karte holt gezielt eine Karte aus der Ablage zurück), beide noch offen. Noch nicht vom Nutzer in Godot gegengeprüft.
 11. **#21 Add a card that reshuffles the discard pile back into the draw pile** – Fast-Follow aus #15, macht die Ablage wieder nutzbar (komplett).
 12. **#22 Add a card that lets the player pick a specific card from the discard pile** – Fast-Follow aus #15, gezielte Variante zu #21 (eine Karte statt aller).
-13. **#4 Add Card Shop** – braucht Gold-Belohnungen (jetzt aus #2/#10 vorhanden, `PlayerWallet`) und einen volleren Kartenpool aus #12.
-14. **#13 Add new characters** – Charakterinhalt, Voraussetzung für Gruppe & Charakter-Shop.
-15. **#5 Add Group** – Party bis 4 Charaktere, braucht #13.
-16. **#7 Add character death** – überschneidet sich stark mit #5 (Permadeath für Nicht-Hauptcharaktere), am besten zusammen mit #5 umsetzen statt als getrennten Schritt.
-17. **#6 Add Character Shop** – braucht #13, #5 und das Shop-Muster aus #4.
-18. **#8 Add stat overview after stage & dungeon** – Reporting-Capstone, braucht Gruppe (#5) und Stage/Dungeon-Struktur (#2/#3/#10) als Datengrundlage.
-19. **#16 Add a gold-theft enemy type** – kleine Content-Ergänzung, blockiert nichts anderes.
-20. **#20 Decide how to handle deck exhaustion** – geringe Priorität, tritt bei aktuellen Balance-Werten praktisch nicht auf (~Level 11).
-21. **#17 Do a real balancing pass** – bewusst spät, erst wenn Gegner-/Karten-/Boss-Inhalt nicht mehr in Bewegung ist. `Arena.TestWaveCountOverride` vorher zurücksetzen.
-22. **#18 Replace drawn circles with real sprites/animations** – Art-Pass, braucht Assets von außerhalb, sinnvoll erst wenn die Mechanik sich beruhigt hat.
-23. **#19 Decide whether to delete the legacy turn-based combat code** – reine Aufräumarbeit, jederzeit möglich, keine Abhängigkeiten.
+13. **#25 Kartenschmiede (Kartenlevel + Aufwertung mehrerer gleicher Karten)** – noch **nicht final einsortiert**, braucht erst ein Planungsgespräch (offene Fragen im Issue: eigener Menüpunkt außerhalb der Dungeons vs. eigene kampflose Stage; Upgrade-Kosten; was sich pro Level ändert; Auswirkung auf `CardCatalog`/`PlayerCardCollection`/Level-up-Ziehungen).
+14. **#4 Add Card Shop** – braucht Gold-Belohnungen (jetzt aus #2/#10 vorhanden, `PlayerWallet`) und einen volleren Kartenpool aus #12.
+15. **#13 Add new characters** – Charakterinhalt, Voraussetzung für Gruppe & Charakter-Shop.
+16. **#5 Add Group** – Party bis 4 Charaktere, braucht #13.
+17. **#7 Add character death** – überschneidet sich stark mit #5 (Permadeath für Nicht-Hauptcharaktere), am besten zusammen mit #5 umsetzen statt als getrennten Schritt.
+18. **#6 Add Character Shop** – braucht #13, #5 und das Shop-Muster aus #4.
+19. **#8 Add stat overview after stage & dungeon** – Reporting-Capstone, braucht Gruppe (#5) und Stage/Dungeon-Struktur (#2/#3/#10) als Datengrundlage.
+20. **#16 Add a gold-theft enemy type** – kleine Content-Ergänzung, blockiert nichts anderes.
+21. **#20 Decide how to handle deck exhaustion** – geringe Priorität, tritt bei aktuellen Balance-Werten praktisch nicht auf (~Level 11).
+22. **#17 Do a real balancing pass** – bewusst spät, erst wenn Gegner-/Karten-/Boss-Inhalt nicht mehr in Bewegung ist. `Arena.TestWaveCountOverride` vorher zurücksetzen.
+23. **#18 Replace drawn circles with real sprites/animations** – Art-Pass, braucht Assets von außerhalb, sinnvoll erst wenn die Mechanik sich beruhigt hat.
+24. **#19 Decide whether to delete the legacy turn-based combat code** – reine Aufräumarbeit, jederzeit möglich, keine Abhängigkeiten.
 
 Godot-Physik/Kollisionslayer für die Arena (falls die reinen Distanzchecks irgendwann nicht mehr reichen, z. B. für Gegner-Ausweichverhalten untereinander) ist bewusst **kein eigenes Issue** – rein spekulativ, kein aktueller Auslöser.
