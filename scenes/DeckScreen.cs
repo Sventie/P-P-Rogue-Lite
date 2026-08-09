@@ -14,13 +14,17 @@ using PPRogueLite.Meta;
 /// im Deck (entfernt eine Karteninstanz aus dem Deck, legt sie in den
 /// Bestand), "+" im Bestand (nimmt eine Karteninstanz ins Deck auf).
 ///
-/// Das Deck muss beim Verlassen genau 10 Karten enthalten: "Zurück zum Hub"
-/// ist deaktiviert, solange die Anzahl abweicht; bei mehr als 10 Karten wird
-/// die Anzeige zusätzlich rot.
+/// Das Deck muss beim Verlassen zwischen MinDeckSize und MaxDeckSize Karten
+/// enthalten: "Zurück zum Hub" ist deaktiviert, solange die Anzahl außerhalb
+/// liegt; bei mehr als MaxDeckSize Karten wird die Anzeige zusätzlich rot.
+/// MinDeckSize ist bewusst auf 1 (statt fest 10) gesenkt, damit sich auch
+/// kleinere Testdecks zusammenstellen lassen (z. B. nur die neuen
+/// Modifikatorkarten, um sie isoliert zu testen).
 /// </summary>
 public partial class DeckScreen : Control
 {
-    private const int RequiredDeckSize = 10;
+    private const int MinDeckSize = 1;
+    private const int MaxDeckSize = 10;
     private const float CardWidth = 190f;
 
     private static readonly Color BadColor = new(0.611765f, 0.231373f, 0.231373f);
@@ -127,7 +131,7 @@ public partial class DeckScreen : Control
         _deckHeaderLabel.Text = $"Im Deck ({deckCount})";
         _benchHeaderLabel.Text = $"Nicht im Deck ({benchCount})";
 
-        bool tooMany = deckCount > RequiredDeckSize;
+        bool tooMany = deckCount > MaxDeckSize;
         if (tooMany)
         {
             _deckHeaderLabel.AddThemeColorOverride("font_color", BadColor);
@@ -137,15 +141,15 @@ public partial class DeckScreen : Control
             _deckHeaderLabel.RemoveThemeColorOverride("font_color");
         }
 
-        bool exact = deckCount == RequiredDeckSize;
-        _backButton.Disabled = !exact;
-        _deckStatusLabel.Visible = !exact;
+        bool valid = deckCount >= MinDeckSize && deckCount <= MaxDeckSize;
+        _backButton.Disabled = !valid;
+        _deckStatusLabel.Visible = !valid;
 
-        if (!exact)
+        if (!valid)
         {
             _deckStatusLabel.Text = tooMany
-                ? $"Zu viele Karten im Deck ({deckCount}/{RequiredDeckSize}). Lege welche ab, um zurückzukehren."
-                : $"Zu wenige Karten im Deck ({deckCount}/{RequiredDeckSize}). Füge welche hinzu, um zurückzukehren.";
+                ? $"Zu viele Karten im Deck ({deckCount}/{MaxDeckSize}). Lege welche ab, um zurückzukehren."
+                : $"Zu wenige Karten im Deck ({deckCount}). Mindestens {MinDeckSize} Karte nötig, um zurückzukehren.";
         }
     }
 
