@@ -73,6 +73,7 @@ public partial class Arena : Node2D
     private double _survivalSeconds;
     private int _totalWaves = 10;
     private int _currentWave;
+    private bool _isBossStage;
     private bool _waveTransitionPending;
     private bool _gameOver;
     private bool _paused;
@@ -90,9 +91,14 @@ public partial class Arena : Node2D
         }
 
         // Wellenanzahl kommt vom gewählten Pfad-Knoten (Issue #10) - Start-
-        // und Boss-Stage haben immer die Standard-Wellenanzahl ("ohne
-        // Modifikatoren"), Zwischen-Stages variieren je nach gewählter Route.
-        _totalWaves = TestWaveCountOverride > 0 ? TestWaveCountOverride : DungeonRun.CurrentNode.WaveCount;
+        // Stage hat immer die Standard-Wellenanzahl ("ohne Modifikatoren"),
+        // Zwischen-Stages variieren je nach gewählter Route. Die Boss-Stage
+        // (letzte Stage, Issue #11) hat AUSSCHLIESSLICH den Boss als
+        // Encounter - keine normalen Wellen davor, siehe BeginWave/SpawnBoss.
+        _isBossStage = DungeonRun.CurrentStage == DungeonRun.TotalStages;
+        _totalWaves = _isBossStage
+            ? 1
+            : (TestWaveCountOverride > 0 ? TestWaveCountOverride : DungeonRun.CurrentNode.WaveCount);
 
         _enemyScene = GD.Load<PackedScene>("res://scenes/Enemy.tscn");
         _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
@@ -217,11 +223,17 @@ public partial class Arena : Node2D
         enemy.Initialize(definition);
     }
 
-    /// <summary>Startet Welle N: spawnt N Gegner auf einmal (Welle 1 = 1, Welle 2 = 2, ...).</summary>
+    /// <summary>Startet Welle N: spawnt N Gegner auf einmal (Welle 1 = 1, Welle 2 = 2, ...). Auf der Boss-Stage (_totalWaves == 1) wird stattdessen einmalig der Boss gespawnt.</summary>
     private void BeginWave(int waveNumber)
     {
         _currentWave = waveNumber;
         UpdateWaveDisplay();
+
+        if (_isBossStage)
+        {
+            SpawnBoss();
+            return;
+        }
 
         for (int i = 0; i < waveNumber; i++)
         {
@@ -231,7 +243,25 @@ public partial class Arena : Node2D
 
     private void UpdateWaveDisplay()
     {
-        _waveLabel.Text = $"Welle: {_currentWave} / {_totalWaves}";
+        _waveLabel.Text = _isBossStage ? "Boss-Kampf" : $"Welle: {_currentWave} / {_totalWaves}";
+    }
+
+    private void SpawnBoss()
+    {
+        var boss = _enemyScene.Instantiate<Enemy>();
+        AddChild(boss);
+        boss.Position = RandomEdgePosition();
+        boss.Initialize(new OgerHaeuptlingDefinition());
+    }
+
+    /// <summary>Spawnt einen Gegner nahe einer Position mit leichtem Zufalls-Versatz - genutzt vom Oger-Häuptling, um Verstärkung zu rufen (Issue #11).</summary>
+    public void SpawnEnemyNear(EnemyDefinition definition, Vector2 position, float scatterRadius)
+    {
+        var enemy = _enemyScene.Instantiate<Enemy>();
+        AddChild(enemy);
+        var offset = new Vector2((float)GD.RandRange(-scatterRadius, scatterRadius), (float)GD.RandRange(-scatterRadius, scatterRadius));
+        enemy.Position = position + offset;
+        enemy.Initialize(definition);
     }
 
     /// <summary>

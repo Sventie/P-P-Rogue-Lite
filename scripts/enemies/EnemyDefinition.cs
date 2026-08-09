@@ -11,6 +11,9 @@ public enum EnemyMovement
 
     /// <summary>Nähert sich, greift bei Kontakt an, zieht sich danach kurz zurück.</summary>
     HitAndRun,
+
+    /// <summary>Bossverhalten (Issue #11): Nahkampf wie Melee, zusätzlich Verstärkung rufen + telegraphierter Keulenschlag. Siehe BossDefinition.</summary>
+    Boss,
 }
 
 /// <summary>

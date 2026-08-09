@@ -28,18 +28,33 @@ public partial class Enemy : Node2D
     private const float RetreatDuration = 1.0f;
     private const float SlowDuration = 2f;
     private const float SlowMultiplier = 0.5f;
+    private const float SummonScatterRadius = 60f;
 
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
     private static readonly Color SlowColor = new(0.45f, 0.25f, 0.55f);
     private static readonly Color HpBarBackground = new(0f, 0f, 0f, 0.5f);
     private static readonly Color HpBarFill = new(0.352941f, 0.478431f, 0.309804f);
+    private static readonly Color SlamTelegraphColor = new(0.611765f, 0.15f, 0.15f, 0.35f);
+
+    private enum SlamState
+    {
+        Idle,
+        Telegraphing,
+    }
 
     public CharacterEnemy Stats { get; private set; } = null!;
 
     private EnemyDefinition _definition = null!;
+    private BossDefinition? _bossDefinition;
     private Player? _player;
+    private Arena? _arena;
     private float _attackTimer;
     private float _retreatTimer;
+    private float _summonTimer;
+    private float _slamTimer;
+    private SlamState _slamState = SlamState.Idle;
+    private float _slamTelegraphTimer;
+    private Vector2 _slamDirection = Vector2.Right;
     private bool _disabled;
     private PackedScene _floatingTextScene = null!;
 
@@ -50,12 +65,16 @@ public partial class Enemy : Node2D
 
         var players = GetTree().GetNodesInGroup("player");
         _player = players.Count > 0 ? players[0] as Player : null;
+        _arena = GetParent() as Arena;
     }
 
     /// <summary>Setzt Stats/Verhalten des Gegners - erst nach AddChild() aufrufen (siehe Klassenkommentar).</summary>
     public void Initialize(EnemyDefinition definition)
     {
         _definition = definition;
+        _bossDefinition = definition as BossDefinition;
+        _summonTimer = _bossDefinition?.SummonCooldown ?? 0f;
+        _slamTimer = _bossDefinition?.SlamCooldown ?? 0f;
         Stats = new CharacterEnemy
         {
             Name = definition.DisplayName,
@@ -74,12 +93,28 @@ public partial class Enemy : Node2D
         float radius = _definition.Radius;
         DrawCircle(Vector2.Zero, radius, ColorFor(_definition.Id));
 
+        // Bei größeren Gegnern (aktuell nur der Boss) skaliert der HP-Balken
+        // mit dem Radius mit, statt bei fester Breite kaum sichtbar zu wirken.
+        float barWidth = Mathf.Max(HpBarWidth, radius * 1.4f);
         float hpBarOffsetY = -(radius + 10f);
-        var topLeft = new Vector2(-HpBarWidth / 2f, hpBarOffsetY);
-        DrawRect(new Rect2(topLeft, new Vector2(HpBarWidth, HpBarHeight)), HpBarBackground);
+        var topLeft = new Vector2(-barWidth / 2f, hpBarOffsetY);
+        DrawRect(new Rect2(topLeft, new Vector2(barWidth, HpBarHeight)), HpBarBackground);
 
         float ratio = Stats.MaxHp > 0 ? Mathf.Clamp((float)Stats.Hp / Stats.MaxHp, 0f, 1f) : 0f;
-        DrawRect(new Rect2(topLeft, new Vector2(HpBarWidth * ratio, HpBarHeight)), HpBarFill);
+        DrawRect(new Rect2(topLeft, new Vector2(barWidth * ratio, HpBarHeight)), HpBarFill);
+
+        if (_slamState == SlamState.Telegraphing && _bossDefinition is not null)
+        {
+            var perpendicular = new Vector2(-_slamDirection.Y, _slamDirection.X);
+            var points = new[]
+            {
+                perpendicular * _bossDefinition.SlamHalfWidth,
+                (perpendicular * _bossDefinition.SlamHalfWidth) + (_slamDirection * _bossDefinition.SlamRange),
+                (-perpendicular * _bossDefinition.SlamHalfWidth) + (_slamDirection * _bossDefinition.SlamRange),
+                -perpendicular * _bossDefinition.SlamHalfWidth,
+            };
+            DrawColoredPolygon(points, SlamTelegraphColor);
+        }
     }
 
     public override void _Process(double delta)
@@ -100,6 +135,9 @@ public partial class Enemy : Node2D
                 break;
             case EnemyMovement.HitAndRun:
                 UpdateHitAndRun(dt);
+                break;
+            case EnemyMovement.Boss:
+                UpdateBoss(dt);
                 break;
         }
     }
@@ -174,6 +212,112 @@ public partial class Enemy : Node2D
             AttackPlayer();
             _retreatTimer = RetreatDuration;
         }
+    }
+
+    /// <summary>
+    /// Bossverhalten (Issue #11): normaler Kontaktangriff wie Melee, dazu
+    /// zwei unabhängige Cooldowns für Verstärkung-rufen und den
+    /// telegraphierten Keulenschlag. Während Wind-up/Auflösung des
+    /// Keulenschlags steht der Boss still (kein Movement/Kontaktangriff),
+    /// damit der angezeigte Hitbox-Bereich verlässlich stimmt.
+    /// </summary>
+    private void UpdateBoss(float delta)
+    {
+        var boss = _bossDefinition!;
+
+        UpdateSummon(boss, delta);
+
+        if (_slamState == SlamState.Telegraphing)
+        {
+            _slamTelegraphTimer -= delta;
+            if (_slamTelegraphTimer <= 0f)
+            {
+                ExecuteSlam(boss);
+            }
+
+            return;
+        }
+
+        _slamTimer -= delta;
+        if (_slamTimer <= 0f)
+        {
+            StartSlamTelegraph(boss);
+            return;
+        }
+
+        UpdateMelee(delta);
+    }
+
+    private void UpdateSummon(BossDefinition boss, float delta)
+    {
+        _summonTimer -= delta;
+        if (_summonTimer > 0f)
+        {
+            return;
+        }
+
+        _summonTimer = boss.SummonCooldown;
+        for (int i = 0; i < boss.SummonCount; i++)
+        {
+            _arena?.SpawnEnemyNear(boss.SummonedEnemy, Position, SummonScatterRadius);
+        }
+
+        SpawnFloatingText(ColorFor(_definition.Id), "Verstärkung!");
+    }
+
+    /// <summary>Legt die Angriffsrichtung EINMALIG beim Start des Telegraphs fest (nicht laufend nachgeführt), damit die angezeigte Hitbox verlässlich ist.</summary>
+    private void StartSlamTelegraph(BossDefinition boss)
+    {
+        if (_player is null)
+        {
+            return;
+        }
+
+        _slamDirection = (_player.Position - Position).Normalized();
+        if (_slamDirection == Vector2.Zero)
+        {
+            _slamDirection = Vector2.Right;
+        }
+
+        _slamState = SlamState.Telegraphing;
+        _slamTelegraphTimer = boss.SlamTelegraphDuration;
+        QueueRedraw();
+    }
+
+    /// <summary>Löst den Keulenschlag auf: nur wer noch in der (vorher sichtbaren) Hitbox steht, kann getroffen werden - Ausweichen per Wegbewegen ist somit garantiert wirksam.</summary>
+    private void ExecuteSlam(BossDefinition boss)
+    {
+        _slamState = SlamState.Idle;
+        _slamTimer = boss.SlamCooldown;
+        QueueRedraw();
+
+        if (_player is null || !IsInSlamHitbox(boss, _player.Position))
+        {
+            return;
+        }
+
+        int roll = Dice.Roll(20);
+        int total = roll + boss.SlamAttackBonus;
+        if (total < _player.EffectiveArmorClass)
+        {
+            SpawnFloatingText(MissColor, "Verfehlt");
+            return;
+        }
+
+        int damage = Dice.Roll(boss.SlamDamageDie) + boss.SlamDamageBonus;
+        _player.TakeDamage(damage);
+        SpawnFloatingText(ColorFor(_definition.Id), damage.ToString());
+    }
+
+    private bool IsInSlamHitbox(BossDefinition boss, Vector2 worldPoint)
+    {
+        Vector2 relative = worldPoint - Position;
+        var perpendicular = new Vector2(-_slamDirection.Y, _slamDirection.X);
+
+        float forward = relative.Dot(_slamDirection);
+        float side = Mathf.Abs(relative.Dot(perpendicular));
+
+        return forward >= 0f && forward <= boss.SlamRange && side <= boss.SlamHalfWidth;
     }
 
     /// <summary>
@@ -272,6 +416,7 @@ public partial class Enemy : Node2D
         "archer" => new Color(0.3f, 0.5f, 0.3f),
         "schamane" => new Color(0.45f, 0.25f, 0.55f),
         "schurke" => new Color(0.25f, 0.25f, 0.4f),
+        "oger_haeuptling" => new Color(0.35f, 0.15f, 0.1f),
         _ => new Color(0.5f, 0.5f, 0.5f),
     };
 }
