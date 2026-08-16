@@ -34,10 +34,6 @@ layout_mode = 2
 size_flags_vertical = 0
 theme_override_constants/separation = 6
 
-[node name="AbilityBar" type="VBoxContainer" parent="HUD/MarginContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
 [node name="HpLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_type_variation = &"DeskLabel"
@@ -61,6 +57,10 @@ layout_mode = 2
 max_value = 2.0
 value = 0.0
 show_percentage = false
+
+[node name="AbilityBar" type="VBoxContainer" parent="HUD/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
 
 [node name="StageLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 layout_mode = 2
