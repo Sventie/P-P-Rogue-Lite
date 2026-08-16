@@ -23,6 +23,7 @@ public partial class Player : Node2D
 {
     private const float Speed = 220f;
     private const float MeleeRange = 90f;
+    private const float RangedAttackRange = 300f; // Issue #13: Pfeilschuss/Arkaner Blitz
     private const float Radius = 16f;
     private const int XpPerLevel = 2; // Test-Balance-Wert fuer schnelleres Testen (1 XP pro Kill)
     private const int LevelUpCardChoices = 2; // Issue #15: so viele Karten werden pro Level-up zur Auswahl gezogen
@@ -50,6 +51,8 @@ public partial class Player : Node2D
     private static readonly Color HitColor = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color CritColor = new(0.85098f, 0.698039f, 0.361961f);
     private static readonly Color RangeColor = new(0.85098f, 0.698039f, 0.361961f, 0.3f);
+    private static readonly Color ArrowColor = new(0.55f, 0.4f, 0.25f);
+    private static readonly Color ArcaneColor = new(0.4f, 0.3f, 0.75f);
 
     private sealed class ActiveAbility
     {
@@ -117,22 +120,18 @@ public partial class Player : Node2D
         AddToGroup("player");
         _floatingTextScene = GD.Load<PackedScene>("res://scenes/FloatingText.tscn");
 
+        // Player spielt aktuell fest den Krieger (siehe CharacterClassCatalog,
+        // Issue #13) - echte Auswahl zwischen den Archetypen folgt erst mit
+        // der Gruppe (#5/#26), der Katalog ist bisher nur Datengrundlage.
+        var characterClass = CharacterClassCatalog.Krieger;
         Character = new PlayerCharacter
         {
-            Name = "Rurik Steinfaust",
-            ClassName = "Krieger — Stufe 1",
-            Stats = new AbilityScores(new Dictionary<Ability, int>
-            {
-                [Ability.Strength] = 16,
-                [Ability.Dexterity] = 12,
-                [Ability.Constitution] = 14,
-                [Ability.Intelligence] = 10,
-                [Ability.Wisdom] = 10,
-                [Ability.Charisma] = 8,
-            }),
-            MaxHp = 24,
-            Hp = 24,
-            BaseArmorClass = 15,
+            Name = characterClass.Name,
+            ClassName = $"{characterClass.ClassName} — Stufe 1",
+            Stats = characterClass.BuildStats(),
+            MaxHp = characterClass.MaxHp,
+            Hp = characterClass.MaxHp,
+            BaseArmorClass = characterClass.BaseArmorClass,
         };
 
         if (DungeonRun.HasProgress)
@@ -153,7 +152,8 @@ public partial class Player : Node2D
         else
         {
             _runDeck = new Deck(PlayerCardCollection.DeckCards);
-            EquipAbility(new HiebCard(), announce: false);
+            var startingCard = CardCatalog.AllCardTypes().First(card => card.Id == characterClass.StartingCardId);
+            EquipAbility(startingCard, announce: false);
         }
 
         QueueRedraw();
@@ -315,7 +315,7 @@ public partial class Player : Node2D
             case "hieb":
             {
                 int modifier = Character.Stats.Modifier(Ability.Strength);
-                var target = ResolveMeleeAttack(modifier + _bonusAttackRoll, damageDiceCount: 1, damageDie: 8, damageBonus: modifier);
+                var target = ResolveAttack(modifier + _bonusAttackRoll, damageDiceCount: 1, damageDie: 8, damageBonus: modifier, range: MeleeRange);
 
                 if (target is not null)
                 {
@@ -331,11 +331,47 @@ public partial class Player : Node2D
             case "wuchtschlag":
             {
                 int fullModifier = Character.Stats.Modifier(Ability.Strength);
-                var target = ResolveMeleeAttack(fullModifier - 2 + _bonusAttackRoll, damageDiceCount: 2, damageDie: 8, damageBonus: fullModifier);
+                var target = ResolveAttack(fullModifier - 2 + _bonusAttackRoll, damageDiceCount: 2, damageDie: 8, damageBonus: fullModifier, range: MeleeRange);
 
                 if (target is not null)
                 {
                     foreach (var modifierId in ModifiersFor("wuchtschlag"))
+                    {
+                        ApplyCoupledEffect(modifierId, target);
+                    }
+                }
+
+                break;
+            }
+
+            case "pfeilschuss":
+            {
+                int modifier = Character.Stats.Modifier(Ability.Dexterity);
+                var target = ResolveAttack(modifier + _bonusAttackRoll, damageDiceCount: 1, damageDie: 6, damageBonus: modifier, range: RangedAttackRange);
+
+                if (target is not null)
+                {
+                    SpawnPlayerProjectile(target.Position, ArrowColor);
+
+                    foreach (var modifierId in ModifiersFor("pfeilschuss"))
+                    {
+                        ApplyCoupledEffect(modifierId, target);
+                    }
+                }
+
+                break;
+            }
+
+            case "arkaner_blitz":
+            {
+                int modifier = Character.Stats.Modifier(Ability.Intelligence);
+                var target = ResolveAttack(modifier + _bonusAttackRoll, damageDiceCount: 1, damageDie: 6, damageBonus: modifier, range: RangedAttackRange);
+
+                if (target is not null)
+                {
+                    SpawnPlayerProjectile(target.Position, ArcaneColor);
+
+                    foreach (var modifierId in ModifiersFor("arkaner_blitz"))
                     {
                         ApplyCoupledEffect(modifierId, target);
                     }
@@ -447,10 +483,10 @@ public partial class Player : Node2D
         }
     }
 
-    /// <summary>Löst einen Nahkampfangriff auf den nächsten Gegner in Reichweite auf. Gibt das getroffene Ziel zurück (null bei Fehlschlag/keinem Ziel) - Aufrufer nutzen das z. B. für gekoppelte Modifikatoren, die ein konkretes Trefferziel brauchen (Issue #14).</summary>
-    private Enemy? ResolveMeleeAttack(int attackModifier, int damageDiceCount, int damageDie, int damageBonus)
+    /// <summary>Löst einen Angriff auf den nächsten Gegner innerhalb von range auf (Nahkampf: MeleeRange, Fernkampf: RangedAttackRange, Issue #13). Gibt das getroffene Ziel zurück (null bei Fehlschlag/keinem Ziel) - Aufrufer nutzen das z. B. für gekoppelte Modifikatoren, die ein konkretes Trefferziel brauchen (Issue #14).</summary>
+    private Enemy? ResolveAttack(int attackModifier, int damageDiceCount, int damageDie, int damageBonus, float range)
     {
-        var target = FindNearestEnemyInRange();
+        var target = FindNearestEnemyInRange(range);
         if (target is null)
         {
             return null;
@@ -491,6 +527,27 @@ public partial class Player : Node2D
         return target;
     }
 
+    /// <summary>
+    /// Rein kosmetisches Projektil für Fernkampfkarten (Pfeilschuss/Arkaner
+    /// Blitz, Issue #13): Treffer/Schaden sind zu diesem Zeitpunkt schon
+    /// über ResolveAttack aufgelöst (gleicher verdeckter W20 wie Nahkampf,
+    /// nur mit RangedAttackRange statt MeleeRange) - das Projektil liefert
+    /// nur die visuelle Rückmeldung, dass der Angriff aus der Distanz kam.
+    /// Wiederverwendet Projectile.cs (sonst für gegnerische Fernangriffe),
+    /// über Projectile.Cosmetic von der echten Trefferauflösung ausgenommen.
+    /// </summary>
+    private void SpawnPlayerProjectile(Vector2 targetPosition, Color color)
+    {
+        var projectile = new Projectile
+        {
+            Direction = (targetPosition - Position).Normalized(),
+            Cosmetic = true,
+            Color = color,
+        };
+        GetParent().AddChild(projectile);
+        projectile.GlobalPosition = GlobalPosition;
+    }
+
     /// <summary>Reaktiver Modifikator-Hook (Issue #12): wird bei jedem kritischen Treffer aufgerufen.</summary>
     private void OnCriticalHit()
     {
@@ -501,10 +558,10 @@ public partial class Player : Node2D
         }
     }
 
-    private Enemy? FindNearestEnemyInRange()
+    private Enemy? FindNearestEnemyInRange(float range)
     {
         Enemy? nearest = null;
-        float nearestDistance = MeleeRange;
+        float nearestDistance = range;
 
         foreach (Node node in GetTree().GetNodesInGroup("enemies"))
         {
@@ -635,6 +692,8 @@ public partial class Player : Node2D
         "atemholen" => 8.0f,
         "wiederkehr" => 20.0f, // Issue #21: seltener, build-prägender Effekt statt Basis-Tool
         "erinnerung" => 15.0f, // Issue #22
+        "pfeilschuss" => 1.0f, // Issue #13: gleicher Rhythmus wie Hieb
+        "arkaner_blitz" => 1.2f,
         _ => 2.0f,
     };
 

@@ -61,6 +61,8 @@ public static class CardCatalog
         bench.Add(new BlutungCard());
         bench.Add(new WiederkehrCard());
         bench.Add(new ErinnerungCard());
+        bench.Add(new PfeilschussCard());
+        bench.Add(new ArkanerBlitzCard());
 
         return bench;
     }
@@ -81,5 +83,7 @@ public static class CardCatalog
         new BlutungCard(),
         new WiederkehrCard(),
         new ErinnerungCard(),
+        new PfeilschussCard(),
+        new ArkanerBlitzCard(),
     };
 }

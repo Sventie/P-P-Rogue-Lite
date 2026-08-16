@@ -10,6 +10,13 @@ using PPRogueLite.Enemies;
 /// Richtung (kein Homing), Treffer wird per Distanz zum Spieler geprüft
 /// (keine Godot-Physik/Kollision, wie überall sonst im Projekt). Löst
 /// denselben verdeckten W20-Wurf wie ein Nahkampfangriff aus.
+///
+/// Zweitverwendung als rein kosmetisches Spieler-Projektil (Pfeilschuss/
+/// Arkaner Blitz, Issue #13): Cosmetic=true überspringt die komplette
+/// Trefferauflösung (die läuft für Spielerangriffe schon instant über
+/// Player.ResolveAttack, mit größerer Reichweite statt Flugzeit als
+/// eigentlichem Skill-Faktor) - das Projektil fliegt dann nur zur
+/// visuellen Rückmeldung bis MaxLifetime oder Bildschirmrand.
 /// </summary>
 public partial class Projectile : Node2D
 {
@@ -34,6 +41,9 @@ public partial class Projectile : Node2D
     public EnemyOnHitEffect OnHitEffect { get; set; }
 
     public Color Color { get; set; } = Colors.White;
+
+    /// <summary>true = keine Trefferauflösung, nur visueller Flug (Issue #13: Spieler-Fernkampfkarten, siehe Klassenkommentar).</summary>
+    public bool Cosmetic { get; set; }
 
     private float _lifetime;
     private bool _disabled;
@@ -62,7 +72,7 @@ public partial class Projectile : Node2D
         }
 
         _lifetime += (float)delta;
-        if (_lifetime >= MaxLifetime || _player is null)
+        if (_lifetime >= MaxLifetime || (!Cosmetic && _player is null))
         {
             QueueFree();
             return;
@@ -70,7 +80,7 @@ public partial class Projectile : Node2D
 
         Position += Direction * Speed * (float)delta;
 
-        if (Position.DistanceTo(_player.Position) <= HitRadius)
+        if (!Cosmetic && Position.DistanceTo(_player!.Position) <= HitRadius)
         {
             ResolveHit();
             QueueFree();
