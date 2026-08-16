@@ -1,4 +1,4 @@
-namespace PPRogueLite.Shop;
+namespace PPRogueLite.ShopSystem;
 
 using System.Collections.Generic;
 using PPRogueLite.Cards;

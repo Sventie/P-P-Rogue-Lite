@@ -6,7 +6,7 @@ using Godot;
 using PPRogueLite.Cards;
 using PPRogueLite.Character;
 using PPRogueLite.Meta;
-using PPRogueLite.Shop;
+using PPRogueLite.ShopSystem;
 
 /// <summary>
 /// Shop (Issue #4), nur über die Taverne erreichbar (Hub.tscn - ersetzt

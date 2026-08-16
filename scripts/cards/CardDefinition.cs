@@ -15,7 +15,7 @@ public enum CardKind
 
 /// <summary>
 /// Seltenheitsstufe einer Karte (Issue #4: Card Shop) - entspricht 1:1 den
-/// Kartenpack-Stufen (PPRogueLite.Shop.CardPackCatalog), aus denen beim
+/// Kartenpack-Stufen (PPRogueLite.ShopSystem.CardPackCatalog), aus denen beim
 /// Öffnen eines Packs gezogen wird. Bewusst abstrakt auf CardDefinition
 /// (nicht virtual mit Default) - jede Karte muss explizit eine Stufe
 /// bekommen, es gibt keinen sinnvollen impliziten Standardwert.
