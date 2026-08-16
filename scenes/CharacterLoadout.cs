@@ -138,7 +138,7 @@ public sealed class CharacterLoadout
 
     /// <summary>
     /// Aktiviert/deaktiviert alle Instanzen einer Fähigkeit (Klick auf das
-    /// Badge in der Fähigkeiten-Leiste, siehe Arena.AddAbilityBadge). Der
+    /// Badge in der Fähigkeiten-Leiste, siehe Arena.BuildAbilityBadge). Der
     /// Cooldown pausiert währenddessen, statt weiterzulaufen.
     /// </summary>
     public void ToggleAbility(string cardId)

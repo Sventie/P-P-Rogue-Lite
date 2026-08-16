@@ -75,11 +75,10 @@ public partial class Arena : Node2D
     private Label _outcomeLabel = null!;
     private Button _continueButton = null!;
     private Control _levelUpLayer = null!;
-    private HBoxContainer _abilityBar = null!;
+    private VBoxContainer _abilityBar = null!;
 
-    private readonly Dictionary<string, ProgressBar> _cooldownBars = new();
-    private readonly Dictionary<string, Label> _abilityNameLabels = new();
-    private readonly Dictionary<string, Control> _abilityPanels = new();
+    /// <summary>Ein Eintrag pro sichtbarem Fähigkeiten-Badge (Loadout + Karten-Id + dessen Cooldown-Balken) - befüllt von RenderAbilityBar, pro Frame in UpdateCooldownBars ausgelesen.</summary>
+    private readonly List<(CharacterLoadout Loadout, string CardId, ProgressBar Bar)> _cooldownBarEntries = new();
 
     private double _survivalSeconds;
     private int _totalWaves = 10;
@@ -125,7 +124,7 @@ public partial class Arena : Node2D
         _waveTransitionTimer = GetNode<Timer>("WaveTransitionTimer");
         _waveTransitionTimer.Timeout += OnWaveTransitionTimeout;
 
-        _abilityBar = GetNode<HBoxContainer>("HUD/MarginContainer/VBoxContainer/AbilityBar");
+        _abilityBar = GetNode<VBoxContainer>("HUD/MarginContainer/VBoxContainer/AbilityBar");
         _hpLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/HpLabel");
         _hpBar = GetNode<ProgressBar>("HUD/MarginContainer/VBoxContainer/HpBar");
         _xpLabel = GetNode<Label>("HUD/MarginContainer/VBoxContainer/XpLabel");
@@ -149,16 +148,11 @@ public partial class Arena : Node2D
 
         _levelUpLayer = GetNode<Control>("HUD/LevelUpLayer");
 
-        // Faehigkeiten, die der Player schon vor diesem _Ready() ausgeruestet hat
-        // (z. B. das garantierte Start-Hieb), muessen nachtraeglich angezeigt
-        // werden (Player._Ready laeuft als Kind vor Arena._Ready). Die
-        // Fähigkeiten-Leiste zeigt bewusst nur die Fähigkeiten des Leaders
-        // (Issue #26: Companions können ebenfalls Karten ausgerüstet
-        // bekommen, haben aber noch keine eigene Cooldown-Anzeige im HUD).
-        foreach (var card in _player.Loadout.EquippedAbilityTypes)
-        {
-            AddAbilityBadge(card);
-        }
+        // Fähigkeiten-Leiste einmal initial aufbauen - zeigt jetzt jeden
+        // Charakter der Gruppe (Leader + Companions) in einer eigenen Zeile,
+        // mit allen bereits ausgerüsteten Karten (z. B. das garantierte
+        // Start-Hieb bzw. die Klassen-Startkarte jedes Companions).
+        RenderAbilityBar();
 
         BeginWave(1);
     }
@@ -217,6 +211,7 @@ public partial class Arena : Node2D
                 : null;
             companion.Initialize(selected[i], _player, offset, savedHp, savedEquippedCards);
             companion.Loadout.DiscardChoiceOffered += discardPile => OnDiscardChoiceOffered(companion.Loadout, discardPile);
+            companion.Died += RenderAbilityBar;
 
             _companions.Add(companion);
         }
@@ -250,9 +245,9 @@ public partial class Arena : Node2D
 
     private void UpdateCooldownBars()
     {
-        foreach (var (cardId, bar) in _cooldownBars)
+        foreach (var (loadout, cardId, bar) in _cooldownBarEntries)
         {
-            bar.Value = _player.Loadout.GetCooldownProgress(cardId);
+            bar.Value = loadout.GetCooldownProgress(cardId);
         }
     }
 
@@ -415,22 +410,78 @@ public partial class Arena : Node2D
     }
 
     /// <summary>
-    /// Fähigkeiten-Badge in der Fähigkeiten-Leiste - anklickbar, um genau
-    /// diese Fähigkeit (alle Instanzen, siehe CharacterLoadout.ToggleAbility)
-    /// ein- oder auszuschalten. Gedacht, damit einzelne Effekte isoliert
-    /// getestet werden können oder alle Angriffe deaktiviert werden können,
-    /// um kontrolliert Schaden zu nehmen - bewusst keine reine
-    /// Testfunktion, siehe CharacterLoadout.ToggleAbility. Zeigt nur die
-    /// Fähigkeiten des Leaders (Issue #26).
+    /// Baut die komplette Fähigkeiten-Leiste neu auf: eine Zeile pro
+    /// Charakter der Gruppe (Leader zuerst, danach jeder noch lebende
+    /// Companion), mit einem Namens-Label gefolgt von einem Badge pro
+    /// unterschiedlichem ausgerüsteten Kartentyp dieses Charakters - so
+    /// bleibt erkennbar, welcher Angriff zu wem gehört. Wird bei jeder
+    /// strukturellen Änderung komplett neu gerendert (neue Karte
+    /// ausgerüstet, Companion gestorben) statt einzelne Badges zu patchen -
+    /// gleiches "alles neu rendern"-Prinzip wie DeckScreen/Shop/PartyScreen.
     /// </summary>
-    private void AddAbilityBadge(CardDefinition card)
+    private void RenderAbilityBar()
+    {
+        foreach (Node child in _abilityBar.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        _cooldownBarEntries.Clear();
+
+        AddAbilityRow($"{_player.Character.Name} (Du)", _player.Loadout);
+
+        foreach (var companion in _companions)
+        {
+            if (IsInstanceValid(companion) && !companion.IsDefeated)
+            {
+                AddAbilityRow(companion.Owned.ClassDefinition.ClassName, companion.Loadout);
+            }
+        }
+    }
+
+    /// <summary>Eine Zeile der Fähigkeiten-Leiste für einen Charakter - Namens-Label plus ein Badge pro unterschiedlichem ausgerüsteten Kartentyp. Zeigt nichts, solange der Charakter (theoretisch) keine Fähigkeit hat.</summary>
+    private void AddAbilityRow(string characterLabel, CharacterLoadout loadout)
+    {
+        var abilityTypes = loadout.EquippedAbilityTypes.ToList();
+        if (abilityTypes.Count == 0)
+        {
+            return;
+        }
+
+        var row = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Begin };
+        row.AddThemeConstantOverride("separation", 8);
+
+        row.AddChild(new Label
+        {
+            Text = characterLabel,
+            ThemeTypeVariation = "DeskLabel",
+            CustomMinimumSize = new Vector2(110, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        foreach (var card in abilityTypes)
+        {
+            row.AddChild(BuildAbilityBadge(card, loadout));
+        }
+
+        _abilityBar.AddChild(row);
+    }
+
+    /// <summary>
+    /// Fähigkeiten-Badge für eine Karte eines bestimmten Charakters -
+    /// anklickbar, um genau diese Fähigkeit bei genau diesem Charakter
+    /// (alle Instanzen, siehe CharacterLoadout.ToggleAbility) ein- oder
+    /// auszuschalten. Gedacht, damit einzelne Effekte isoliert getestet
+    /// werden können oder alle Angriffe deaktiviert werden können, um
+    /// kontrolliert Schaden zu nehmen - bewusst keine reine Testfunktion.
+    /// </summary>
+    private Control BuildAbilityBadge(CardDefinition card, CharacterLoadout loadout)
     {
         var panel = new PanelContainer
         {
             ThemeTypeVariation = "CardPanel",
             MouseDefaultCursorShape = Control.CursorShape.PointingHand,
         };
-        panel.GuiInput += @event => OnAbilityBadgeInput(card, @event);
 
         var vbox = new VBoxContainer();
         vbox.AddThemeConstantOverride("separation", 4);
@@ -456,41 +507,33 @@ public partial class Arena : Node2D
         vbox.AddChild(label);
         vbox.AddChild(bar);
         panel.AddChild(vbox);
-        _abilityBar.AddChild(panel);
 
-        _cooldownBars[card.Id] = bar;
-        _abilityNameLabels[card.Id] = label;
-        _abilityPanels[card.Id] = panel;
-        UpdateAbilityLabel(card);
+        UpdateBadgeVisual(card, loadout, panel, label);
+        panel.GuiInput += @event => OnAbilityBadgeInput(card, loadout, @event, panel, label);
+
+        _cooldownBarEntries.Add((loadout, card.Id, bar));
+
+        return panel;
     }
 
-    private void UpdateAbilityLabel(CardDefinition card)
+    private static void UpdateBadgeVisual(CardDefinition card, CharacterLoadout loadout, PanelContainer panel, Label label)
     {
-        if (!_abilityNameLabels.TryGetValue(card.Id, out var label))
-        {
-            return;
-        }
-
-        int count = _player.Loadout.CountEquipped(card.Id);
+        int count = loadout.CountEquipped(card.Id);
         string baseText = count > 1 ? $"{card.DisplayName}  ×{count}" : card.DisplayName;
-        bool enabled = _player.Loadout.IsAbilityEnabled(card.Id);
+        bool enabled = loadout.IsAbilityEnabled(card.Id);
         label.Text = enabled ? baseText : $"{baseText} (aus)";
-
-        if (_abilityPanels.TryGetValue(card.Id, out var panel))
-        {
-            panel.Modulate = enabled ? Colors.White : DisabledAbilityModulate;
-        }
+        panel.Modulate = enabled ? Colors.White : DisabledAbilityModulate;
     }
 
-    private void OnAbilityBadgeInput(CardDefinition card, InputEvent @event)
+    private static void OnAbilityBadgeInput(CardDefinition card, CharacterLoadout loadout, InputEvent @event, PanelContainer panel, Label label)
     {
         if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
         {
             return;
         }
 
-        _player.Loadout.ToggleAbility(card.Id);
-        UpdateAbilityLabel(card);
+        loadout.ToggleAbility(card.Id);
+        UpdateBadgeVisual(card, loadout, panel, label);
     }
 
     /// <summary>
@@ -539,7 +582,7 @@ public partial class Arena : Node2D
         cardView.Populate(card);
 
         var targetLoadout = await ShowAssignmentPicker(cardColumn);
-        EquipAndAnnounce(card, targetLoadout, () => targetLoadout.EquipCard(card));
+        EquipAndRefreshAbilityBar(() => targetLoadout.EquipCard(card));
 
         row.QueueFree();
         SetWorldPaused(false);
@@ -622,7 +665,7 @@ public partial class Arena : Node2D
         cardsRow.QueueFree();
         headerLabel.QueueFree();
         var targetLoadout = await ShowAssignmentPicker(choiceColumn);
-        EquipAndAnnounce(chosen, targetLoadout, () => _player.ResolveCardChoice(chosen, candidates, targetLoadout));
+        EquipAndRefreshAbilityBar(() => _player.ResolveCardChoice(chosen, candidates, targetLoadout));
 
         row.QueueFree();
         SetWorldPaused(false);
@@ -705,7 +748,7 @@ public partial class Arena : Node2D
         var takenCard = _player.RunDeck.TakeFromDiscard(chosen.Id);
         if (takenCard is not null)
         {
-            EquipAndAnnounce(takenCard, sourceLoadout, () => sourceLoadout.EquipCard(takenCard));
+            EquipAndRefreshAbilityBar(() => sourceLoadout.EquipCard(takenCard));
         }
 
         row.QueueFree();
@@ -753,34 +796,11 @@ public partial class Arena : Node2D
         return await selection.Task;
     }
 
-    /// <summary>
-    /// Rüstet eine Karte über die übergebene Aktion aus (equip selbst
-    /// unterscheidet sich je nach Aufrufer - direktes EquipCard vs.
-    /// ResolveCardChoice mit Ablage-Handling) und aktualisiert danach die
-    /// Fähigkeiten-Leiste, aber NUR wenn der Leader das Ziel war (Issue #26:
-    /// die Leiste zeigt bewusst nur die Fähigkeiten des Leaders, Companions
-    /// haben noch keine eigene Cooldown-Anzeige im HUD).
-    /// </summary>
-    private void EquipAndAnnounce(CardDefinition card, CharacterLoadout targetLoadout, Action equip)
+    /// <summary>Rüstet eine Karte über die übergebene Aktion aus (equip selbst unterscheidet sich je nach Aufrufer - direktes EquipCard vs. ResolveCardChoice mit Ablage-Handling) und rendert danach die Fähigkeiten-Leiste neu, egal welcher Charakter das Ziel war.</summary>
+    private void EquipAndRefreshAbilityBar(Action equip)
     {
-        bool isLeaderTarget = targetLoadout == _player.Loadout;
-        bool wasNewType = isLeaderTarget && !_player.Loadout.EquippedAbilityTypes.Any(type => type.Id == card.Id);
-
         equip();
-
-        if (!isLeaderTarget)
-        {
-            return;
-        }
-
-        if (wasNewType)
-        {
-            AddAbilityBadge(card);
-        }
-        else
-        {
-            UpdateAbilityLabel(card);
-        }
+        RenderAbilityBar();
     }
 
     /// <summary>Linke Spalte des Level-up-Screens: Nachziehstapel/Ausgerüstet/Ablage-Übersicht, gemeinsam genutzt von OnAbilityGained/OnCardChoiceOffered/OnDiscardChoiceOffered.</summary>

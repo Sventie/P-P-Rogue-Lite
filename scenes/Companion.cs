@@ -1,5 +1,6 @@
 namespace PPRogueLite;
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -29,6 +30,9 @@ using PPRogueLite.Meta;
 /// </summary>
 public partial class Companion : Node2D, IPartyMember
 {
+    /// <summary>Feuert unmittelbar bevor der Companion sich selbst entfernt (Permadeath) - Arena nutzt das, um die Fähigkeiten-Leiste neu zu rendern, ohne jeden Frame auf Gültigkeit prüfen zu müssen.</summary>
+    public event Action? Died;
+
     private const float Radius = 13f;
     private const float FollowSpeed = 260f; // etwas schneller als Player.Speed, damit die Formation nicht dauerhaft hinterherhinkt
     private const float HpBarWidth = 26f;
@@ -167,6 +171,7 @@ public partial class Companion : Node2D, IPartyMember
 
         PlayerCharacterCollection.MarkDead(Owned);
         SpawnFloatingText(Position, "Gefallen!", MissColor);
+        Died?.Invoke();
         QueueFree();
     }
 
