@@ -52,7 +52,6 @@ public partial class Enemy : Node2D
 
     private EnemyDefinition _definition = null!;
     private BossDefinition? _bossDefinition;
-    private Player? _player;
     private Arena? _arena;
     private float _attackTimer;
     private float _retreatTimer;
@@ -78,9 +77,6 @@ public partial class Enemy : Node2D
     {
         AddToGroup("enemies");
         _floatingTextScene = GD.Load<PackedScene>("res://scenes/FloatingText.tscn");
-
-        var players = GetTree().GetNodesInGroup("player");
-        _player = players.Count > 0 ? players[0] as Player : null;
         _arena = GetParent() as Arena;
     }
 
@@ -153,7 +149,7 @@ public partial class Enemy : Node2D
 
     public override void _Process(double delta)
     {
-        if (_disabled || _player is null || Stats.IsDefeated)
+        if (_disabled || Stats.IsDefeated)
         {
             return;
         }
@@ -184,12 +180,18 @@ public partial class Enemy : Node2D
 
     private void UpdateMelee(float delta)
     {
-        Vector2 toPlayer = _player!.Position - Position;
-        float distance = toPlayer.Length();
+        var target = this.FindNearestPartyMember(Position);
+        if (target is null)
+        {
+            return;
+        }
+
+        Vector2 toTarget = target.Position - Position;
+        float distance = toTarget.Length();
 
         if (distance > _definition.EngagementRange)
         {
-            Position += toPlayer.Normalized() * _definition.MoveSpeed * delta;
+            Position += toTarget.Normalized() * _definition.MoveSpeed * delta;
             return;
         }
 
@@ -197,23 +199,29 @@ public partial class Enemy : Node2D
         if (_attackTimer <= 0f)
         {
             _attackTimer = _definition.AttackCooldown;
-            AttackPlayer();
+            AttackTarget(target);
         }
     }
 
-    /// <summary>Hält EngagementRange als Wunschabstand (nähert sich/weicht zurück), feuert Projektile sobald in Reichweite.</summary>
+    /// <summary>Hält EngagementRange als Wunschabstand zum nächstgelegenen Gruppenmitglied (nähert sich/weicht zurück), feuert Projektile sobald in Reichweite.</summary>
     private void UpdateRanged(float delta)
     {
-        Vector2 toPlayer = _player!.Position - Position;
-        float distance = toPlayer.Length();
+        var target = this.FindNearestPartyMember(Position);
+        if (target is null)
+        {
+            return;
+        }
+
+        Vector2 toTarget = target.Position - Position;
+        float distance = toTarget.Length();
 
         if (distance > _definition.EngagementRange + RangedTolerance)
         {
-            Position += toPlayer.Normalized() * _definition.MoveSpeed * delta;
+            Position += toTarget.Normalized() * _definition.MoveSpeed * delta;
         }
         else if (distance < _definition.EngagementRange - RangedTolerance)
         {
-            Position -= toPlayer.Normalized() * _definition.MoveSpeed * delta;
+            Position -= toTarget.Normalized() * _definition.MoveSpeed * delta;
             ClampToViewport();
         }
 
@@ -221,27 +229,33 @@ public partial class Enemy : Node2D
         if (_attackTimer <= 0f && distance <= _definition.EngagementRange + RangedTolerance)
         {
             _attackTimer = _definition.AttackCooldown;
-            FireProjectile(toPlayer.Normalized());
+            FireProjectile(toTarget.Normalized());
         }
     }
 
-    /// <summary>Nähert sich, greift bei Kontakt an, zieht sich danach für RetreatDuration zurück statt stehen zu bleiben.</summary>
+    /// <summary>Nähert sich dem nächstgelegenen Gruppenmitglied, greift bei Kontakt an, zieht sich danach für RetreatDuration zurück statt stehen zu bleiben.</summary>
     private void UpdateHitAndRun(float delta)
     {
-        Vector2 toPlayer = _player!.Position - Position;
+        var target = this.FindNearestPartyMember(Position);
+        if (target is null)
+        {
+            return;
+        }
+
+        Vector2 toTarget = target.Position - Position;
 
         if (_retreatTimer > 0f)
         {
             _retreatTimer -= delta;
-            Position -= toPlayer.Normalized() * _definition.MoveSpeed * delta;
+            Position -= toTarget.Normalized() * _definition.MoveSpeed * delta;
             ClampToViewport();
             return;
         }
 
-        float distance = toPlayer.Length();
+        float distance = toTarget.Length();
         if (distance > _definition.EngagementRange)
         {
-            Position += toPlayer.Normalized() * _definition.MoveSpeed * delta;
+            Position += toTarget.Normalized() * _definition.MoveSpeed * delta;
             return;
         }
 
@@ -249,7 +263,7 @@ public partial class Enemy : Node2D
         if (_attackTimer <= 0f)
         {
             _attackTimer = _definition.AttackCooldown;
-            AttackPlayer();
+            AttackTarget(target);
             _retreatTimer = RetreatDuration;
         }
     }
@@ -308,12 +322,13 @@ public partial class Enemy : Node2D
     /// <summary>Legt die Angriffsrichtung EINMALIG beim Start des Telegraphs fest (nicht laufend nachgeführt), damit die angezeigte Hitbox verlässlich ist.</summary>
     private void StartSlamTelegraph(BossDefinition boss)
     {
-        if (_player is null)
+        var target = this.FindNearestPartyMember(Position);
+        if (target is null)
         {
             return;
         }
 
-        _slamDirection = (_player.Position - Position).Normalized();
+        _slamDirection = (target.Position - Position).Normalized();
         if (_slamDirection == Vector2.Zero)
         {
             _slamDirection = Vector2.Right;
@@ -324,29 +339,38 @@ public partial class Enemy : Node2D
         QueueRedraw();
     }
 
-    /// <summary>Löst den Keulenschlag auf: nur wer noch in der (vorher sichtbaren) Hitbox steht, kann getroffen werden - Ausweichen per Wegbewegen ist somit garantiert wirksam.</summary>
+    /// <summary>
+    /// Löst den Keulenschlag auf: kann mehrere Gruppenmitglieder gleichzeitig
+    /// treffen, sofern sie in der (vorher sichtbaren) Hitbox stehen - jedes
+    /// betroffene Mitglied bekommt einen eigenen unabhängigen W20-Wurf
+    /// (Issue #5). Nur wer noch in der Hitbox steht, kann getroffen werden -
+    /// Ausweichen per Wegbewegen ist somit garantiert wirksam.
+    /// </summary>
     private void ExecuteSlam(BossDefinition boss)
     {
         _slamState = SlamState.Idle;
         _slamTimer = boss.SlamCooldown;
         QueueRedraw();
 
-        if (_player is null || !IsInSlamHitbox(boss, _player.Position))
+        foreach (Node node in GetTree().GetNodesInGroup("party"))
         {
-            return;
-        }
+            if (node is not IPartyMember member || member.IsDefeated || !IsInSlamHitbox(boss, member.Position))
+            {
+                continue;
+            }
 
-        int roll = Dice.Roll(20);
-        int total = roll + boss.SlamAttackBonus;
-        if (total < _player.EffectiveArmorClass)
-        {
-            SpawnFloatingText(MissColor, "Verfehlt");
-            return;
-        }
+            int roll = Dice.Roll(20);
+            int total = roll + boss.SlamAttackBonus;
+            if (total < member.EffectiveArmorClass)
+            {
+                SpawnFloatingText(MissColor, "Verfehlt");
+                continue;
+            }
 
-        int damage = Dice.Roll(boss.SlamDamageDie) + boss.SlamDamageBonus;
-        _player.TakeDamage(damage);
-        SpawnFloatingText(ColorFor(_definition.Id), damage.ToString());
+            int damage = Dice.Roll(boss.SlamDamageDie) + boss.SlamDamageBonus;
+            member.TakeDamage(damage);
+            SpawnFloatingText(ColorFor(_definition.Id), damage.ToString());
+        }
     }
 
     private bool IsInSlamHitbox(BossDefinition boss, Vector2 worldPoint)
@@ -375,16 +399,11 @@ public partial class Enemy : Node2D
             Mathf.Clamp(Position.Y, radius, viewportSize.Y - radius));
     }
 
-    private void AttackPlayer()
+    private void AttackTarget(IPartyMember target)
     {
-        if (_player is null)
-        {
-            return;
-        }
-
         int roll = Dice.Roll(20);
         int total = roll + Stats.AttackBonus;
-        bool hit = total >= _player.EffectiveArmorClass;
+        bool hit = total >= target.EffectiveArmorClass;
 
         if (!hit)
         {
@@ -393,9 +412,9 @@ public partial class Enemy : Node2D
         }
 
         int damage = Dice.Roll(Stats.DamageDie) + Stats.DamageBonus;
-        _player.TakeDamage(damage);
+        target.TakeDamage(damage);
         SpawnFloatingText(ColorFor(_definition.Id), damage.ToString());
-        ApplyOnHitEffect();
+        ApplyOnHitEffect(target);
     }
 
     private void FireProjectile(Vector2 direction)
@@ -413,11 +432,11 @@ public partial class Enemy : Node2D
         projectile.GlobalPosition = GlobalPosition;
     }
 
-    private void ApplyOnHitEffect()
+    private void ApplyOnHitEffect(IPartyMember target)
     {
         if (_definition.OnHitEffect == EnemyOnHitEffect.Slow)
         {
-            _player?.ApplySlow(SlowDuration, SlowMultiplier);
+            target.ApplySlow(SlowDuration, SlowMultiplier);
             SpawnFloatingText(SlowColor, "Verlangsamt!");
         }
     }
@@ -585,7 +604,7 @@ public partial class Enemy : Node2D
             return;
         }
 
-        _player?.GrantXp(1);
+        Player.Instance?.GrantXp(1);
         QueueFree();
     }
 

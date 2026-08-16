@@ -45,6 +45,9 @@ public static class DungeonRun
 
     public static List<CardDefinition> SavedEquippedCards { get; private set; } = new();
 
+    /// <summary>HP der Gefährten über Stage-Wechsel hinweg (Issue #5), geschlüsselt über CharacterClassDefinition.ClassName (im Roster gibt es je Klasse nur einen OwnedCharacter, der Name ist damit stabil eindeutig). Von Arena.CompleteStage gesetzt, von Arena._Ready beim Spawnen der Companions gelesen.</summary>
+    public static Dictionary<string, int> SavedCompanionHp { get; private set; } = new();
+
     public static StageNode CurrentNode => Map!.GetNode(CurrentNodeId);
 
     public static void Start()
@@ -53,6 +56,7 @@ public static class DungeonRun
         CurrentStage = 1;
         CurrentNodeId = Map.Nodes.First(node => node.Column == 1).Id;
         HasProgress = false;
+        SavedCompanionHp = new Dictionary<string, int>();
     }
 
     /// <summary>Die vom aktuellen Knoten aus erreichbaren nächsten Routen (Issue #10).</summary>
@@ -77,6 +81,12 @@ public static class DungeonRun
         HasProgress = true;
     }
 
+    /// <summary>Von Arena.CompleteStage aufgerufen, parallel zu SaveProgress - eigene Methode statt zusätzlicher Parameter dort, da Companions von Arena (nicht von Player) verwaltet werden.</summary>
+    public static void SaveCompanionHp(Dictionary<string, int> hp)
+    {
+        SavedCompanionHp = hp;
+    }
+
     public static void End()
     {
         Map = null;
@@ -86,6 +96,7 @@ public static class DungeonRun
         SavedDrawPile = new List<CardDefinition>();
         SavedDiscardPile = new List<CardDefinition>();
         SavedEquippedCards = new List<CardDefinition>();
+        SavedCompanionHp = new Dictionary<string, int>();
 
         // Shop-Sonderangebote würfeln sich neu, sobald ein Dungeon endet
         // (Issue #4) - der Shop ist nur über die Taverne erreichbar, nicht

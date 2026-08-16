@@ -47,16 +47,12 @@ public partial class Projectile : Node2D
 
     private float _lifetime;
     private bool _disabled;
-    private Player? _player;
     private PackedScene _floatingTextScene = null!;
 
     public override void _Ready()
     {
         AddToGroup("projectiles");
         _floatingTextScene = GD.Load<PackedScene>("res://scenes/FloatingText.tscn");
-
-        var players = GetTree().GetNodesInGroup("player");
-        _player = players.Count > 0 ? players[0] as Player : null;
     }
 
     public override void _Draw()
@@ -72,7 +68,7 @@ public partial class Projectile : Node2D
         }
 
         _lifetime += (float)delta;
-        if (_lifetime >= MaxLifetime || (!Cosmetic && _player is null))
+        if (_lifetime >= MaxLifetime)
         {
             QueueFree();
             return;
@@ -80,9 +76,15 @@ public partial class Projectile : Node2D
 
         Position += Direction * Speed * (float)delta;
 
-        if (!Cosmetic && Position.DistanceTo(_player!.Position) <= HitRadius)
+        if (Cosmetic)
         {
-            ResolveHit();
+            return;
+        }
+
+        var target = this.FindNearestPartyMember(Position);
+        if (target is not null && Position.DistanceTo(target.Position) <= HitRadius)
+        {
+            ResolveHit(target);
             QueueFree();
         }
     }
@@ -92,11 +94,11 @@ public partial class Projectile : Node2D
         _disabled = disabled;
     }
 
-    private void ResolveHit()
+    private void ResolveHit(IPartyMember target)
     {
         int roll = Dice.Roll(20);
         int total = roll + AttackBonus;
-        bool hit = total >= _player!.EffectiveArmorClass;
+        bool hit = total >= target.EffectiveArmorClass;
 
         if (!hit)
         {
@@ -105,12 +107,12 @@ public partial class Projectile : Node2D
         }
 
         int damage = Dice.Roll(DamageDie) + DamageBonus;
-        _player.TakeDamage(damage);
+        target.TakeDamage(damage);
         SpawnFloatingText(Color, damage.ToString());
 
         if (OnHitEffect == EnemyOnHitEffect.Slow)
         {
-            _player.ApplySlow(SlowDuration, SlowMultiplier);
+            target.ApplySlow(SlowDuration, SlowMultiplier);
             SpawnFloatingText(SlowColor, "Verlangsamt!");
         }
     }

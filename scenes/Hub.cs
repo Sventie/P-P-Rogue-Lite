@@ -8,10 +8,10 @@ using PPRogueLite.Meta;
 /// Dungeons erreichbar - Zwischenstopps innerhalb eines laufenden Dungeons
 /// laufen über das Lager, siehe Camp.cs). "Dungeon betreten" startet einen
 /// neuen Dungeon (DungeonRun.Start()) und wechselt in die Echtzeit-Arena
-/// (scenes/Arena.tscn), "Karten managen" öffnet den Deck-Screen, "Shop"
-/// öffnet den Shop (Issue #4, ersetzt den bisherigen "Mit Loot
-/// entkommen"-Platzhalter). Der übrige Button ist reine UI-Struktur ohne
-/// Funktion - siehe CLAUDE.md für die geplante Funktionalität.
+/// (scenes/Arena.tscn), "Karten managen" öffnet den Deck-Screen, "Gruppe
+/// managen" öffnet die Gruppenzusammenstellung (Issue #5, PartyScreen.tscn),
+/// "Shop" öffnet den Shop (Issue #4, ersetzt den bisherigen "Mit Loot
+/// entkommen"-Platzhalter).
 /// </summary>
 public partial class Hub : Control
 {
@@ -28,6 +28,10 @@ public partial class Hub : Control
             "MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox/ManageCardsButton");
         manageCardsButton.Pressed += OnManageCardsPressed;
 
+        var managePartyButton = GetNode<Button>(
+            "MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox/ManagePartyButton");
+        managePartyButton.Pressed += OnManagePartyPressed;
+
         var openShopButton = GetNode<Button>(
             "MarginContainer/VBoxContainer/MenuCenter/MenuPanel/MenuVBox/OpenShopButton");
         openShopButton.Pressed += OnOpenShopPressed;
@@ -42,6 +46,11 @@ public partial class Hub : Control
     private void OnManageCardsPressed()
     {
         GetTree().ChangeSceneToFile("res://scenes/DeckScreen.tscn");
+    }
+
+    private void OnManagePartyPressed()
+    {
+        GetTree().ChangeSceneToFile("res://scenes/PartyScreen.tscn");
     }
 
     private void OnOpenShopPressed()

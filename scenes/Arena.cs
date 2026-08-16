@@ -54,9 +54,16 @@ public partial class Arena : Node2D
         (Ability.Charisma, "Charisma"),
     };
 
+    private static readonly Vector2[] CompanionFormationOffsets =
+    {
+        new(-50, -40), new(50, -40), new(0, 60),
+    };
+
     private PackedScene _enemyScene = null!;
     private PackedScene _cardViewScene = null!;
+    private PackedScene _companionScene = null!;
     private Player _player = null!;
+    private readonly List<Companion> _companions = new();
     private Timer _waveTransitionTimer = null!;
     private Label _hpLabel = null!;
     private ProgressBar _hpBar = null!;
@@ -106,12 +113,15 @@ public partial class Arena : Node2D
 
         _enemyScene = GD.Load<PackedScene>("res://scenes/Enemy.tscn");
         _cardViewScene = GD.Load<PackedScene>("res://scenes/CardView.tscn");
+        _companionScene = GD.Load<PackedScene>("res://scenes/Companion.tscn");
 
         _player = GetNode<Player>("Player");
         _player.AbilityGained += OnAbilityGained;
         _player.NewAbilityTypeUnlocked += AddAbilityBadge;
         _player.CardChoiceOffered += OnCardChoiceOffered;
         _player.DiscardChoiceOffered += OnDiscardChoiceOffered;
+
+        SpawnCompanions();
 
         _waveTransitionTimer = GetNode<Timer>("WaveTransitionTimer");
         _waveTransitionTimer.Timeout += OnWaveTransitionTimeout;
@@ -174,6 +184,35 @@ public partial class Arena : Node2D
         }
 
         CheckWaveCleared();
+    }
+
+    /// <summary>
+    /// Spawnt einen Companion-Node je ausgewähltem, noch lebendem Gefährten
+    /// (Issue #5, PlayerCharacterCollection.SelectedCompanions) auf einem
+    /// festen Formations-Platz um den Leader. Bei einer Folge-Stage
+    /// desselben Dungeons wird die gespeicherte HP übernommen
+    /// (DungeonRun.SavedCompanionHp), sonst startet der Companion mit
+    /// voller HP.
+    /// </summary>
+    private void SpawnCompanions()
+    {
+        var selected = PlayerCharacterCollection.SelectedCompanions.Where(character => character.IsAlive).ToList();
+
+        for (int i = 0; i < selected.Count; i++)
+        {
+            var companion = _companionScene.Instantiate<Companion>();
+            AddChild(companion);
+
+            var offset = CompanionFormationOffsets[i % CompanionFormationOffsets.Length];
+            companion.Position = _player.Position + offset;
+
+            int? savedHp = DungeonRun.HasProgress && DungeonRun.SavedCompanionHp.TryGetValue(selected[i].ClassDefinition.ClassName, out int hp)
+                ? hp
+                : null;
+            companion.Initialize(selected[i], _player, offset, savedHp);
+
+            _companions.Add(companion);
+        }
     }
 
     private void UpdateHpDisplay()
@@ -318,6 +357,7 @@ public partial class Arena : Node2D
         int reward = (int)Math.Round(BaseGoldReward * DungeonRun.CurrentNode.GoldMultiplier);
         PlayerWallet.Gold += reward;
         _player.SaveProgress();
+        SaveCompanionProgress();
 
         if (DungeonRun.CurrentStage < DungeonRun.TotalStages)
         {
@@ -331,6 +371,23 @@ public partial class Arena : Node2D
             DungeonRun.End();
             FinishRun($"Dungeon abgeschlossen! +{reward} Gold", "Zurück zur Taverne", "res://scenes/Hub.tscn");
         }
+    }
+
+    /// <summary>Schreibt die aktuelle HP aller noch lebenden Companions in DungeonRun, damit die nächste Stage desselben Dungeons daran anknüpfen kann (gleiches Prinzip wie Player.SaveProgress).</summary>
+    private void SaveCompanionProgress()
+    {
+        var hp = new Dictionary<string, int>();
+        foreach (var companion in _companions)
+        {
+            if (!IsInstanceValid(companion))
+            {
+                continue;
+            }
+
+            hp[companion.Owned.ClassDefinition.ClassName] = companion.CurrentHp;
+        }
+
+        DungeonRun.SaveCompanionHp(hp);
     }
 
     private Vector2 RandomEdgePosition()
@@ -766,6 +823,14 @@ public partial class Arena : Node2D
             if (node is Projectile projectile)
             {
                 projectile.SetDisabled(paused);
+            }
+        }
+
+        foreach (var companion in _companions)
+        {
+            if (IsInstanceValid(companion))
+            {
+                companion.SetDisabled(paused);
             }
         }
 

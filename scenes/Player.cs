@@ -19,7 +19,7 @@ using PPRogueLite.Meta;
 /// PPRogueLite.Combat.Dice) entschieden, nur ohne Popup - sichtbar wird nur
 /// das Ergebnis (Flugtext).
 /// </summary>
-public partial class Player : Node2D
+public partial class Player : Node2D, IPartyMember
 {
     private const float Speed = 220f;
     private const float MeleeRange = 90f;
@@ -84,9 +84,14 @@ public partial class Player : Node2D
     /// <summary>Feuert, wenn die Erinnerung-Fähigkeit auslöst (Issue #22) - der Aufrufer muss ResolveDiscardChoice mit der Wahl aufrufen. Feuert nicht bei leerer Ablage.</summary>
     public event Action<IReadOnlyList<CardDefinition>>? DiscardChoiceOffered;
 
+    /// <summary>Node-Referenz auf den aktuell laufenden Player (Issue #5) - Enemy nutzt sie, um erledigte Gegner immer dem gemeinsamen XP-Pool des Hauptcharakters gutzuschreiben, unabhängig davon, ob der Kill von Player oder einem Companion kam.</summary>
+    public static Player? Instance { get; private set; }
+
     public PlayerCharacter Character { get; private set; } = null!;
 
     public int EffectiveArmorClass => Character.ArmorClass + (_paradeTimer > 0f ? (int)ParadeBonus : 0);
+
+    public bool IsDefeated => Character.IsDefeated;
 
     /// <summary>Aktuell aktive Fähigkeiten, ein Eintrag pro verschiedenem Kartentyp.</summary>
     public IEnumerable<CardDefinition> EquippedAbilityTypes => _abilities
@@ -117,7 +122,8 @@ public partial class Player : Node2D
 
     public override void _Ready()
     {
-        AddToGroup("player");
+        Instance = this;
+        AddToGroup("party");
         _floatingTextScene = GD.Load<PackedScene>("res://scenes/FloatingText.tscn");
 
         // Player spielt aktuell fest den Krieger (siehe CharacterClassCatalog,
@@ -783,5 +789,13 @@ public partial class Player : Node2D
     public void SetDisabled(bool disabled)
     {
         _disabled = disabled;
+    }
+
+    public override void _ExitTree()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 }
