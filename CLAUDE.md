@@ -324,7 +324,7 @@ Noch nicht in der echten Godot-Umgebung getestet.
 
 ## Offene Punkte / nächste Schritte
 
-**GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#25). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer). Issues #14–#25 sind neu entstanden aus vorher nur hier im Dokument notierten offenen Punkten/Entscheidungen bzw. als Fast-Follows während der Umsetzung – siehe jeweilige Issue-Beschreibung für Details, hier nur kurz zusammengefasst:
+**GitHub Issues sind jetzt das Backlog** für größere Features (Repo `Sventie/P-P-Rogue-Lite`, Issues #2–#26). Gemeinsam mit dem Nutzer erarbeitete Abarbeitungsreihenfolge (nach technischen Abhängigkeiten, nicht nach Issue-Nummer). Issues #14–#26 sind neu entstanden aus vorher nur hier im Dokument notierten offenen Punkten/Entscheidungen bzw. als Fast-Follows während der Umsetzung – siehe jeweilige Issue-Beschreibung für Details, hier nur kurz zusammengefasst:
 
 1. ~~**#2 Add Stage logic**~~ – **umgesetzt** (siehe Echtzeit-Arena-Abschnitt oben: Stage aus mehreren Wellen, Welle N = N Gegner, Gold-Belohnung bei Abschluss). Noch nicht vom Nutzer in Godot gegengeprüft.
 2. ~~**#3 Add Dungeon logic**~~ – **umgesetzt** (siehe Dungeon-Struktur-Abschnitt oben: mehrere Stages pro Dungeon, neues Lager `Camp.tscn` als Zwischenstopp *innerhalb* eines Dungeons, Taverne/Hub nur noch *zwischen* Dungeons, Charakter-Fortschritt über `DungeonRun` erhalten). Noch nicht vom Nutzer in Godot gegengeprüft.
@@ -343,12 +343,13 @@ Noch nicht in der echten Godot-Umgebung getestet.
 15. **#13 Add new characters** – Charakterinhalt, Voraussetzung für Gruppe & Charakter-Shop.
 16. **#5 Add Group** – Party bis 4 Charaktere, braucht #13.
 17. **#7 Add character death** – überschneidet sich stark mit #5 (Permadeath für Nicht-Hauptcharaktere), am besten zusammen mit #5 umsetzen statt als getrennten Schritt.
-18. **#6 Add Character Shop** – braucht #13, #5; deckt bereits laut eigener Beschreibung "characters can be bought in the card shop" ab, also genau das im Shop vorbereitete Platzhalter-Feld – kein zusätzliches Issue nötig.
-19. **#8 Add stat overview after stage & dungeon** – Reporting-Capstone, braucht Gruppe (#5) und Stage/Dungeon-Struktur (#2/#3/#10) als Datengrundlage.
-20. **#16 Add a gold-theft enemy type** – kleine Content-Ergänzung, blockiert nichts anderes.
-21. **#20 Decide how to handle deck exhaustion** – geringe Priorität, tritt bei aktuellen Balance-Werten praktisch nicht auf (~Level 11).
-22. **#17 Do a real balancing pass** – bewusst spät, erst wenn Gegner-/Karten-/Boss-Inhalt nicht mehr in Bewegung ist. `Arena.TestWaveCountOverride` vorher zurücksetzen.
-23. **#18 Replace drawn circles with real sprites/animations** – Art-Pass, braucht Assets von außerhalb, sinnvoll erst wenn die Mechanik sich beruhigt hat.
-24. **#19 Decide whether to delete the legacy turn-based combat code** – reine Aufräumarbeit, jederzeit möglich, keine Abhängigkeiten.
+18. **#26 Assign level-up cards to a specific character in the group** – Follow-up zu #5 + #15: gezogene Karten sollen beim Level-up einem bestimmten Charakter der Gruppe zugewiesen werden statt automatisch dem einen Spieler zu gehören, für individuellere Builds pro Charakter. Blockiert von #5 (keine Gruppe existiert noch), profitiert von #13 (charaktereigene Fähigkeiten/Stats) vorher geklärt zu haben.
+19. **#6 Add Character Shop** – braucht #13, #5; deckt bereits laut eigener Beschreibung "characters can be bought in the card shop" ab, also genau das im Shop vorbereitete Platzhalter-Feld – kein zusätzliches Issue nötig.
+20. **#8 Add stat overview after stage & dungeon** – Reporting-Capstone, braucht Gruppe (#5) und Stage/Dungeon-Struktur (#2/#3/#10) als Datengrundlage.
+21. **#16 Add a gold-theft enemy type** – kleine Content-Ergänzung, blockiert nichts anderes.
+22. **#20 Decide how to handle deck exhaustion** – geringe Priorität, tritt bei aktuellen Balance-Werten praktisch nicht auf (~Level 11).
+23. **#17 Do a real balancing pass** – bewusst spät, erst wenn Gegner-/Karten-/Boss-Inhalt nicht mehr in Bewegung ist. `Arena.TestWaveCountOverride` vorher zurücksetzen.
+24. **#18 Replace drawn circles with real sprites/animations** – Art-Pass, braucht Assets von außerhalb, sinnvoll erst wenn die Mechanik sich beruhigt hat.
+25. **#19 Decide whether to delete the legacy turn-based combat code** – reine Aufräumarbeit, jederzeit möglich, keine Abhängigkeiten.
 
 Godot-Physik/Kollisionslayer für die Arena (falls die reinen Distanzchecks irgendwann nicht mehr reichen, z. B. für Gegner-Ausweichverhalten untereinander) ist bewusst **kein eigenes Issue** – rein spekulativ, kein aktueller Auslöser.
