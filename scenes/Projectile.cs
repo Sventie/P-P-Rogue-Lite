@@ -11,12 +11,12 @@ using PPRogueLite.Enemies;
 /// (keine Godot-Physik/Kollision, wie überall sonst im Projekt). Löst
 /// denselben verdeckten W20-Wurf wie ein Nahkampfangriff aus.
 ///
-/// Zweitverwendung als rein kosmetisches Spieler-Projektil (Pfeilschuss/
-/// Arkaner Blitz, Issue #13): Cosmetic=true überspringt die komplette
-/// Trefferauflösung (die läuft für Spielerangriffe schon instant über
-/// Player.ResolveAttack, mit größerer Reichweite statt Flugzeit als
-/// eigentlichem Skill-Faktor) - das Projektil fliegt dann nur zur
-/// visuellen Rückmeldung bis MaxLifetime oder Bildschirmrand.
+/// Zweitverwendung als rein kosmetisches Projektil für Nahkampf-fremde
+/// Fähigkeiten (Pfeilschuss/Arkaner Blitz, Issue #13): Cosmetic=true
+/// überspringt die komplette Trefferauflösung (die läuft schon instant über
+/// CharacterLoadout.ResolveAttack, Issue #26, mit größerer Reichweite statt
+/// Flugzeit als eigentlichem Skill-Faktor) - das Projektil fliegt dann nur
+/// zur visuellen Rückmeldung bis MaxLifetime oder Bildschirmrand.
 /// </summary>
 public partial class Projectile : Node2D
 {

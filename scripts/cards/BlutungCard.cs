@@ -8,9 +8,9 @@ using PPRogueLite.Combat;
 /// getroffene Ziel bluten. Der Schaden pro Tick ist ein Prozentsatz der
 /// maximalen HP des Ziels statt eines festen Werts (siehe
 /// Enemy.ApplyBleed) - effektiv gegen tanky Ziele. Die eigentliche Wirkung
-/// sitzt in Player.TriggerAbility/ApplyCoupledEffect (Fall
-/// "wuchtschlag"/"blutung") - diese Klasse ist nur die Datendefinition der
-/// Karte selbst.
+/// sitzt in CharacterLoadout.TriggerAbility/ApplyCoupledEffect (Fall
+/// "wuchtschlag"/"blutung", Issue #26) - diese Klasse ist nur die
+/// Datendefinition der Karte selbst.
 /// </summary>
 public sealed class BlutungCard : CardDefinition
 {

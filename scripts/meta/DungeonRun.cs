@@ -49,6 +49,9 @@ public static class DungeonRun
     /// <summary>HP der Gefährten über Stage-Wechsel hinweg (Issue #5), geschlüsselt über OwnedCharacter.Id (seit dem Charakter-Shop/Issue #6 kann es mehrere OwnedCharacter derselben Klasse geben, ClassName ist also nicht mehr eindeutig). Von Arena.CompleteStage gesetzt, von Arena._Ready beim Spawnen der Companions gelesen.</summary>
     public static Dictionary<Guid, int> SavedCompanionHp { get; private set; } = new();
 
+    /// <summary>Ausgerüstete Karten der Gefährten über Stage-Wechsel hinweg (Issue #26), geschlüsselt über OwnedCharacter.Id wie SavedCompanionHp. Ist ein Companion nicht in diesem Dictionary enthalten (frischer Dungeon), rüstet er stattdessen seine Klassen-Startkarte aus, siehe Companion.Initialize.</summary>
+    public static Dictionary<Guid, List<CardDefinition>> SavedCompanionEquippedCards { get; private set; } = new();
+
     public static StageNode CurrentNode => Map!.GetNode(CurrentNodeId);
 
     public static void Start()
@@ -58,6 +61,7 @@ public static class DungeonRun
         CurrentNodeId = Map.Nodes.First(node => node.Column == 1).Id;
         HasProgress = false;
         SavedCompanionHp = new Dictionary<Guid, int>();
+        SavedCompanionEquippedCards = new Dictionary<Guid, List<CardDefinition>>();
     }
 
     /// <summary>Die vom aktuellen Knoten aus erreichbaren nächsten Routen (Issue #10).</summary>
@@ -88,6 +92,12 @@ public static class DungeonRun
         SavedCompanionHp = hp;
     }
 
+    /// <summary>Von Arena.CompleteStage aufgerufen, parallel zu SaveCompanionHp (Issue #26).</summary>
+    public static void SaveCompanionEquippedCards(Dictionary<Guid, List<CardDefinition>> equippedCards)
+    {
+        SavedCompanionEquippedCards = equippedCards;
+    }
+
     public static void End()
     {
         Map = null;
@@ -98,6 +108,7 @@ public static class DungeonRun
         SavedDiscardPile = new List<CardDefinition>();
         SavedEquippedCards = new List<CardDefinition>();
         SavedCompanionHp = new Dictionary<Guid, int>();
+        SavedCompanionEquippedCards = new Dictionary<Guid, List<CardDefinition>>();
 
         // Shop-Sonderangebote würfeln sich neu, sobald ein Dungeon endet
         // (Issue #4) - der Shop ist nur über die Taverne erreichbar, nicht

@@ -6,9 +6,9 @@ using PPRogueLite.Combat;
 /// Modifikatorkarte, gekoppelte Spielart (Issue #12), erste Nutzung des
 /// Gift-Status-Effekts (Issue #14): hängt an Hieb und vergiftet das
 /// getroffene Ziel mit einer Chance pro Treffer. Die eigentliche Wirkung
-/// (Chance-Wurf + Enemy.ApplyPoison) sitzt in Player.TriggerAbility/
-/// ApplyCoupledEffect (Fall "hieb"/"giftklinge") - diese Klasse ist nur die
-/// Datendefinition der Karte selbst.
+/// (Chance-Wurf + Enemy.ApplyPoison) sitzt in CharacterLoadout.TriggerAbility/
+/// ApplyCoupledEffect (Fall "hieb"/"giftklinge", Issue #26) - diese Klasse
+/// ist nur die Datendefinition der Karte selbst.
 /// </summary>
 public sealed class GiftklingeCard : CardDefinition
 {

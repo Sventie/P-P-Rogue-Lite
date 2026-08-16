@@ -117,9 +117,8 @@ public partial class Arena : Node2D
 
         _player = GetNode<Player>("Player");
         _player.AbilityGained += OnAbilityGained;
-        _player.NewAbilityTypeUnlocked += AddAbilityBadge;
         _player.CardChoiceOffered += OnCardChoiceOffered;
-        _player.DiscardChoiceOffered += OnDiscardChoiceOffered;
+        _player.Loadout.DiscardChoiceOffered += discardPile => OnDiscardChoiceOffered(_player.Loadout, discardPile);
 
         SpawnCompanions();
 
@@ -152,9 +151,11 @@ public partial class Arena : Node2D
 
         // Faehigkeiten, die der Player schon vor diesem _Ready() ausgeruestet hat
         // (z. B. das garantierte Start-Hieb), muessen nachtraeglich angezeigt
-        // werden - das Event allein wuerde sie verpassen (Player._Ready laeuft
-        // als Kind vor Arena._Ready).
-        foreach (var card in _player.EquippedAbilityTypes)
+        // werden (Player._Ready laeuft als Kind vor Arena._Ready). Die
+        // Fähigkeiten-Leiste zeigt bewusst nur die Fähigkeiten des Leaders
+        // (Issue #26: Companions können ebenfalls Karten ausgerüstet
+        // bekommen, haben aber noch keine eigene Cooldown-Anzeige im HUD).
+        foreach (var card in _player.Loadout.EquippedAbilityTypes)
         {
             AddAbilityBadge(card);
         }
@@ -190,9 +191,10 @@ public partial class Arena : Node2D
     /// Spawnt einen Companion-Node je ausgewähltem, noch lebendem Gefährten
     /// (Issue #5, PlayerCharacterCollection.SelectedCompanions) auf einem
     /// festen Formations-Platz um den Leader. Bei einer Folge-Stage
-    /// desselben Dungeons wird die gespeicherte HP übernommen
-    /// (DungeonRun.SavedCompanionHp), sonst startet der Companion mit
-    /// voller HP.
+    /// desselben Dungeons werden gespeicherte HP und ausgerüstete Karten
+    /// übernommen (DungeonRun.SavedCompanionHp/SavedCompanionEquippedCards,
+    /// Issue #26), sonst startet der Companion mit voller HP und seiner
+    /// Klassen-Startkarte.
     /// </summary>
     private void SpawnCompanions()
     {
@@ -209,7 +211,12 @@ public partial class Arena : Node2D
             int? savedHp = DungeonRun.HasProgress && DungeonRun.SavedCompanionHp.TryGetValue(selected[i].Id, out int hp)
                 ? hp
                 : null;
-            companion.Initialize(selected[i], _player, offset, savedHp);
+            IReadOnlyList<CardDefinition>? savedEquippedCards = DungeonRun.HasProgress
+                && DungeonRun.SavedCompanionEquippedCards.TryGetValue(selected[i].Id, out var equippedCards)
+                ? equippedCards
+                : null;
+            companion.Initialize(selected[i], _player, offset, savedHp, savedEquippedCards);
+            companion.Loadout.DiscardChoiceOffered += discardPile => OnDiscardChoiceOffered(companion.Loadout, discardPile);
 
             _companions.Add(companion);
         }
@@ -245,7 +252,7 @@ public partial class Arena : Node2D
     {
         foreach (var (cardId, bar) in _cooldownBars)
         {
-            bar.Value = _player.GetCooldownProgress(cardId);
+            bar.Value = _player.Loadout.GetCooldownProgress(cardId);
         }
     }
 
@@ -373,10 +380,11 @@ public partial class Arena : Node2D
         }
     }
 
-    /// <summary>Schreibt die aktuelle HP aller noch lebenden Companions in DungeonRun, damit die nächste Stage desselben Dungeons daran anknüpfen kann (gleiches Prinzip wie Player.SaveProgress).</summary>
+    /// <summary>Schreibt HP und ausgerüstete Karten aller noch lebenden Companions in DungeonRun, damit die nächste Stage desselben Dungeons daran anknüpfen kann (gleiches Prinzip wie Player.SaveProgress, Issue #26 ergänzt die Karten).</summary>
     private void SaveCompanionProgress()
     {
         var hp = new Dictionary<Guid, int>();
+        var equippedCards = new Dictionary<Guid, List<CardDefinition>>();
         foreach (var companion in _companions)
         {
             if (!IsInstanceValid(companion))
@@ -385,9 +393,11 @@ public partial class Arena : Node2D
             }
 
             hp[companion.Owned.Id] = companion.CurrentHp;
+            equippedCards[companion.Owned.Id] = companion.Loadout.AllEquippedCards.ToList();
         }
 
         DungeonRun.SaveCompanionHp(hp);
+        DungeonRun.SaveCompanionEquippedCards(equippedCards);
     }
 
     private Vector2 RandomEdgePosition()
@@ -406,11 +416,12 @@ public partial class Arena : Node2D
 
     /// <summary>
     /// Fähigkeiten-Badge in der Fähigkeiten-Leiste - anklickbar, um genau
-    /// diese Fähigkeit (alle Instanzen, siehe Player.ToggleAbility) ein-
-    /// oder auszuschalten. Gedacht, damit einzelne Effekte isoliert
+    /// diese Fähigkeit (alle Instanzen, siehe CharacterLoadout.ToggleAbility)
+    /// ein- oder auszuschalten. Gedacht, damit einzelne Effekte isoliert
     /// getestet werden können oder alle Angriffe deaktiviert werden können,
     /// um kontrolliert Schaden zu nehmen - bewusst keine reine
-    /// Testfunktion, siehe Player.ToggleAbility.
+    /// Testfunktion, siehe CharacterLoadout.ToggleAbility. Zeigt nur die
+    /// Fähigkeiten des Leaders (Issue #26).
     /// </summary>
     private void AddAbilityBadge(CardDefinition card)
     {
@@ -460,9 +471,9 @@ public partial class Arena : Node2D
             return;
         }
 
-        int count = _player.CountEquipped(card.Id);
+        int count = _player.Loadout.CountEquipped(card.Id);
         string baseText = count > 1 ? $"{card.DisplayName}  ×{count}" : card.DisplayName;
-        bool enabled = _player.IsAbilityEnabled(card.Id);
+        bool enabled = _player.Loadout.IsAbilityEnabled(card.Id);
         label.Text = enabled ? baseText : $"{baseText} (aus)";
 
         if (_abilityPanels.TryGetValue(card.Id, out var panel))
@@ -478,14 +489,19 @@ public partial class Arena : Node2D
             return;
         }
 
-        _player.ToggleAbility(card.Id);
+        _player.Loadout.ToggleAbility(card.Id);
         UpdateAbilityLabel(card);
     }
 
+    /// <summary>
+    /// Level-up ohne echte Kartenwahl (Nachziehstapel liefert nur noch eine
+    /// Karte): zeigt die eine gezogene Karte, danach wählt der Spieler den
+    /// Ziel-Charakter (Issue #26 - Leader oder ein aktiver Companion), der
+    /// die Karte ausrüstet.
+    /// </summary>
     private async void OnAbilityGained(CardDefinition card)
     {
         SetWorldPaused(true);
-        UpdateAbilityLabel(card);
 
         // HBoxContainer kennt kein "space-between" - volle Bildschirmbreite
         // wird ueber Fill/Expand-Spacer zwischen den drei fixen Spalten
@@ -508,13 +524,7 @@ public partial class Arena : Node2D
         cardColumn.AddThemeConstantOverride("separation", 12);
 
         var cardView = _cardViewScene.Instantiate<CardView>();
-        var continueButton = new Button
-        {
-            Text = "Weiter",
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
-        };
         cardColumn.AddChild(cardView);
-        cardColumn.AddChild(continueButton);
 
         var sheetColumn = BuildCharacterSheet();
         sheetColumn.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
@@ -528,7 +538,8 @@ public partial class Arena : Node2D
         _levelUpLayer.AddChild(row);
         cardView.Populate(card);
 
-        await ToSignal(continueButton, Button.SignalName.Pressed);
+        var targetLoadout = await ShowAssignmentPicker(cardColumn);
+        EquipAndAnnounce(card, targetLoadout, () => targetLoadout.EquipCard(card));
 
         row.QueueFree();
         SetWorldPaused(false);
@@ -537,9 +548,10 @@ public partial class Arena : Node2D
     /// <summary>
     /// Level-up mit echter Kartenwahl (Issue #15): zeigt alle gezogenen
     /// Karten nebeneinander, ein Klick auf eine Karte (CardView.Clicked,
-    /// bisher ungenutzt seit dem Pivot zu Echtzeit) entscheidet direkt -
-    /// kein zusätzlicher "Weiter"-Button nötig. Die nicht gewählten Karten
-    /// wandern über Player.ResolveCardChoice auf die Ablage.
+    /// bisher ungenutzt seit dem Pivot zu Echtzeit) entscheidet direkt.
+    /// Danach wählt der Spieler den Ziel-Charakter (Issue #26). Die nicht
+    /// gewählten Karten wandern über Player.ResolveCardChoice auf die
+    /// (geteilte) Ablage.
     /// </summary>
     private async void OnCardChoiceOffered(IReadOnlyList<CardDefinition> candidates)
     {
@@ -560,12 +572,13 @@ public partial class Arena : Node2D
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
         choiceColumn.AddThemeConstantOverride("separation", 12);
-        choiceColumn.AddChild(new Label
+        var headerLabel = new Label
         {
             Text = "Wähle eine Karte",
             HorizontalAlignment = HorizontalAlignment.Center,
             ThemeTypeVariation = "ColumnHeaderLabel",
-        });
+        };
+        choiceColumn.AddChild(headerLabel);
 
         var cardsRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         cardsRow.AddThemeConstantOverride("separation", 16);
@@ -593,22 +606,26 @@ public partial class Arena : Node2D
         _levelUpLayer.AddChild(row);
 
         var chosen = await selection.Task;
-        _player.ResolveCardChoice(chosen, candidates);
-        UpdateAbilityLabel(chosen);
+
+        cardsRow.QueueFree();
+        headerLabel.QueueFree();
+        var targetLoadout = await ShowAssignmentPicker(choiceColumn);
+        EquipAndAnnounce(chosen, targetLoadout, () => _player.ResolveCardChoice(chosen, candidates, targetLoadout));
 
         row.QueueFree();
         SetWorldPaused(false);
     }
 
     /// <summary>
-    /// Auswahl aus der Ablage (Issue #22, "Erinnerung"): gleicher Aufbau
-    /// wie OnCardChoiceOffered, aber die Kandidaten kommen aus der Ablage
-    /// (gruppiert nach Kartentyp mit Stückzahl, gleiches Muster wie
-    /// DeckScreen.RenderColumn) statt aus frisch gezogenen Karten. Die
-    /// gewählte Karte wird über Player.ResolveDiscardChoice direkt
-    /// ausgerüstet, alle anderen bleiben in der Ablage liegen.
+    /// Auswahl aus der (geteilten) Ablage (Issue #22, "Erinnerung"): gleicher
+    /// Aufbau wie OnCardChoiceOffered, aber die Kandidaten kommen aus der
+    /// Ablage (gruppiert nach Kartentyp mit Stückzahl, gleiches Muster wie
+    /// DeckScreen.RenderColumn) statt aus frisch gezogenen Karten. sourceLoadout
+    /// ist das Loadout, dessen Erinnerung-Karte ausgelöst hat (Issue #26 -
+    /// kann Leader oder ein Companion sein) - die gewählte Karte wird direkt
+    /// auf diesem Loadout ausgerüstet, alle anderen bleiben in der Ablage.
     /// </summary>
-    private async void OnDiscardChoiceOffered(IReadOnlyList<CardDefinition> discardPile)
+    private async void OnDiscardChoiceOffered(CharacterLoadout sourceLoadout, IReadOnlyList<CardDefinition> discardPile)
     {
         SetWorldPaused(true);
 
@@ -665,22 +682,115 @@ public partial class Arena : Node2D
         _levelUpLayer.AddChild(row);
 
         var chosen = await selection.Task;
-        _player.ResolveDiscardChoice(chosen.Id);
-        UpdateAbilityLabel(chosen);
+        var takenCard = _player.RunDeck.TakeFromDiscard(chosen.Id);
+        if (takenCard is not null)
+        {
+            EquipAndAnnounce(takenCard, sourceLoadout, () => sourceLoadout.EquipCard(takenCard));
+        }
 
         row.QueueFree();
         SetWorldPaused(false);
     }
 
-    /// <summary>Linke Spalte des Level-up-Screens: Nachziehstapel/Ausgerüstet/Ablage-Übersicht, gemeinsam genutzt von OnAbilityGained und OnCardChoiceOffered.</summary>
+    /// <summary>
+    /// Zeigt eine Kachel-Reihe "Wem gehört diese Karte?" (Leader + aktive
+    /// Companions, Issue #26) im übergebenen Container und wartet auf einen
+    /// Klick - liefert das gewählte CharacterLoadout zurück. Ein Klick
+    /// entscheidet direkt, kein zusätzlicher Bestätigungs-Button nötig
+    /// (gleiches Klick-entscheidet-Prinzip wie die Kartenwahl selbst).
+    /// </summary>
+    private async Task<CharacterLoadout> ShowAssignmentPicker(VBoxContainer container)
+    {
+        container.AddChild(new Label
+        {
+            Text = "Wem gehört diese Karte?",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = "ColumnHeaderLabel",
+        });
+
+        var targetsRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        targetsRow.AddThemeConstantOverride("separation", 8);
+        container.AddChild(targetsRow);
+
+        var selection = new TaskCompletionSource<CharacterLoadout>();
+
+        var leaderButton = new Button { Text = $"{_player.Character.Name}\n(Hauptcharakter)" };
+        leaderButton.Pressed += () => selection.TrySetResult(_player.Loadout);
+        targetsRow.AddChild(leaderButton);
+
+        foreach (var companion in _companions)
+        {
+            if (!IsInstanceValid(companion))
+            {
+                continue;
+            }
+
+            var companionButton = new Button { Text = companion.Owned.ClassDefinition.ClassName };
+            companionButton.Pressed += () => selection.TrySetResult(companion.Loadout);
+            targetsRow.AddChild(companionButton);
+        }
+
+        return await selection.Task;
+    }
+
+    /// <summary>
+    /// Rüstet eine Karte über die übergebene Aktion aus (equip selbst
+    /// unterscheidet sich je nach Aufrufer - direktes EquipCard vs.
+    /// ResolveCardChoice mit Ablage-Handling) und aktualisiert danach die
+    /// Fähigkeiten-Leiste, aber NUR wenn der Leader das Ziel war (Issue #26:
+    /// die Leiste zeigt bewusst nur die Fähigkeiten des Leaders, Companions
+    /// haben noch keine eigene Cooldown-Anzeige im HUD).
+    /// </summary>
+    private void EquipAndAnnounce(CardDefinition card, CharacterLoadout targetLoadout, Action equip)
+    {
+        bool isLeaderTarget = targetLoadout == _player.Loadout;
+        bool wasNewType = isLeaderTarget && !_player.Loadout.EquippedAbilityTypes.Any(type => type.Id == card.Id);
+
+        equip();
+
+        if (!isLeaderTarget)
+        {
+            return;
+        }
+
+        if (wasNewType)
+        {
+            AddAbilityBadge(card);
+        }
+        else
+        {
+            UpdateAbilityLabel(card);
+        }
+    }
+
+    /// <summary>Linke Spalte des Level-up-Screens: Nachziehstapel/Ausgerüstet/Ablage-Übersicht, gemeinsam genutzt von OnAbilityGained/OnCardChoiceOffered/OnDiscardChoiceOffered.</summary>
     private VBoxContainer BuildDeckOverviewColumn()
     {
         var deckColumn = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         deckColumn.AddThemeConstantOverride("separation", 12);
-        deckColumn.AddChild(BuildPileOverview("Nachziehstapel", _player.CountInDrawPile));
-        deckColumn.AddChild(BuildPileOverview("Bereits gezogen", _player.CountEquipped));
-        deckColumn.AddChild(BuildPileOverview("Ablage", _player.CountInDiscardPile));
+        deckColumn.AddChild(BuildPileOverview("Nachziehstapel", CountInDrawPile));
+        deckColumn.AddChild(BuildPileOverview("Bereits gezogen", CountEquippedAcrossParty));
+        deckColumn.AddChild(BuildPileOverview("Ablage", CountInDiscardPile));
         return deckColumn;
+    }
+
+    private int CountInDrawPile(string cardId) => _player.RunDeck.DrawPile.Count(card => card.Id == cardId);
+
+    private int CountInDiscardPile(string cardId) => _player.RunDeck.DiscardPile.Count(card => card.Id == cardId);
+
+    /// <summary>Wie oft eine Karte dieses Typs irgendwo in der Gruppe ausgerüstet ist (Issue #26: Karten können jedem Charakter zugewiesen werden, "Bereits gezogen" muss also über die ganze Gruppe summieren, damit Nachziehstapel + Ablage + Bereits gezogen weiterhin der Deckgröße entspricht).</summary>
+    private int CountEquippedAcrossParty(string cardId)
+    {
+        int count = _player.Loadout.CountEquipped(cardId);
+        foreach (var companion in _companions)
+        {
+            if (IsInstanceValid(companion))
+            {
+                count += companion.Loadout.CountEquipped(cardId);
+            }
+        }
+
+        return count;
     }
 
     /// <summary>

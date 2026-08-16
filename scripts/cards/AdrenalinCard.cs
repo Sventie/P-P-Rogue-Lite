@@ -6,8 +6,8 @@ using PPRogueLite.Combat;
 /// Modifikatorkarte, reaktive Spielart (Issue #12): reagiert auf ein
 /// Ereignis (hier ein kritischer Treffer) statt auf Cooldown oder an eine
 /// andere Karte gekoppelt zu sein. Die eigentliche Wirkung (Tempo-Buff nach
-/// Krit) sitzt in Player.ResolveMeleeAttack/OnCriticalHit - diese Klasse
-/// ist nur die Datendefinition der Karte selbst.
+/// Krit) sitzt in CharacterLoadout.ResolveAttack/OnCriticalHit (Issue #26)
+/// - diese Klasse ist nur die Datendefinition der Karte selbst.
 /// </summary>
 public sealed class AdrenalinCard : CardDefinition
 {

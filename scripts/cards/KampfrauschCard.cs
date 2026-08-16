@@ -5,8 +5,9 @@ using PPRogueLite.Combat;
 /// <summary>
 /// Modifikatorkarte, globale Spielart (Issue #12): dauerhafter passiver
 /// Bonus, kein eigener Cooldown-Slot. Die eigentliche Wirkung (+1 auf
-/// Angriffswürfe) sitzt in Player.TriggerAbility (Hieb/Wuchtschlag) - diese
-/// Klasse ist nur die Datendefinition der Karte selbst.
+/// Angriffswürfe) sitzt in CharacterLoadout.TriggerAbility (Hieb/
+/// Wuchtschlag, Issue #26) - diese Klasse ist nur die Datendefinition der
+/// Karte selbst.
 /// </summary>
 public sealed class KampfrauschCard : CardDefinition
 {

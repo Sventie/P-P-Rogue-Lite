@@ -4,12 +4,12 @@ using PPRogueLite.Combat;
 
 /// <summary>
 /// Aktionskarte, Fernkampf-Basisangriff des Magiers (Issue #13): wie
-/// Pfeilschuss ein Angriff auf den nächsten Gegner mit
-/// Player.RangedAttackRange statt Player.MeleeRange, aber INT- statt
-/// GES-basiert. Die eigentliche Auflösung sitzt in Player.TriggerAbility
-/// (Fall "arkaner_blitz") - diese Klasse ist nur die Datendefinition der
-/// Karte selbst. Startkarte des Magiers (MagierDefinition), aber schon
-/// jetzt über den Deck-Screen mit dem Krieger testbar.
+/// Pfeilschuss ein Angriff auf den nächsten Gegner mit größerer Reichweite,
+/// aber INT- statt GES-basiert. Die eigentliche Auflösung sitzt in
+/// CharacterLoadout.TriggerAbility (Fall "arkaner_blitz", Issue #26) -
+/// diese Klasse ist nur die Datendefinition der Karte selbst. Startkarte
+/// des Magiers (MagierDefinition), aber schon jetzt über den Deck-Screen
+/// mit anderen Charakteren testbar.
 /// </summary>
 public sealed class ArkanerBlitzCard : CardDefinition
 {

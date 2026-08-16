@@ -3,12 +3,14 @@ namespace PPRogueLite.Cards;
 using PPRogueLite.Combat;
 
 /// <summary>
-/// Aktionskarte (Issue #21): mischt beim Auslösen die komplette Ablage
-/// zurück in den Nachziehstapel (Deck.ReshuffleDiscardIntoDrawPile) - macht
-/// über die Level-up-Kartenwahl (Issue #15) dauerhaft verworfene Karten
-/// wieder erreichbar. Bewusst mit langem Cooldown (siehe Player.CooldownFor)
-/// als seltener, build-prägender Effekt statt eines häufigen Basis-Tools.
-/// Kein Effekt bei leerer Ablage (siehe Player.TriggerAbility).
+/// Aktionskarte (Issue #21): mischt beim Auslösen die komplette (geteilte)
+/// Ablage zurück in den Nachziehstapel (Deck.ReshuffleDiscardIntoDrawPile) -
+/// macht über die Level-up-Kartenwahl (Issue #15) dauerhaft verworfene
+/// Karten wieder erreichbar, unabhängig davon, welcher Charakter der
+/// Gruppe diese Karte ausgerüstet hat (Issue #26). Bewusst mit langem
+/// Cooldown (siehe CharacterLoadout.CooldownFor) als seltener,
+/// build-prägender Effekt statt eines häufigen Basis-Tools. Kein Effekt
+/// bei leerer Ablage (siehe CharacterLoadout.TriggerAbility).
 /// </summary>
 public sealed class WiederkehrCard : CardDefinition
 {

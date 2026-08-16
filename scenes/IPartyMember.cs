@@ -9,6 +9,11 @@ using Godot;
 /// Gruppenmitglied statt fest auf eine einmalig gecachte Player-Referenz -
 /// nötig, seit mehrere Charaktere gleichzeitig im Spielfeld stehen können.
 /// Position kommt bei beiden Implementierungen automatisch von Node2D.
+///
+/// Heal/ApplyHaste sind seit Issue #26 Teil des Interfaces, da CharacterLoadout
+/// (Ausrüst-/Auslöse-Logik für Player UND Companion) Karteneffekte wie
+/// "Atem holen" (Selbstheilung) oder "Adrenalin" (Speed-Boost nach Krit)
+/// unabhängig davon auslösen kann, welcher Charakter die Karte trägt.
 /// </summary>
 public interface IPartyMember
 {
@@ -20,7 +25,11 @@ public interface IPartyMember
 
     void TakeDamage(int amount);
 
+    void Heal(int amount);
+
     void ApplySlow(float duration, float multiplier);
+
+    void ApplyHaste(float duration, float multiplier);
 }
 
 /// <summary>Sucht das nächstgelegene lebende Mitglied der "party"-Gruppe - gemeinsam genutzt von Enemy, Projectile und Companion, um Duplizierung der Distanz-Scan-Logik zu vermeiden.</summary>

@@ -4,13 +4,14 @@ using PPRogueLite.Combat;
 
 /// <summary>
 /// Aktionskarte (Issue #22), gezielte Alternative zu Wiederkehr (#21):
-/// löst beim Auslösen eine Auswahl aus (Player.DiscardChoiceOffered) -
-/// gleiches CardView-Klick-Auswahlprinzip wie die Level-up-Kartenwahl
-/// (Issue #15), hier aber aus der Ablage statt frisch gezogenen Karten. Die
-/// gewählte Karte wird direkt ausgerüstet (Player.ResolveDiscardChoice),
-/// alle anderen bleiben in der Ablage. Bewusst mit langem Cooldown (siehe
-/// Player.CooldownFor) als seltener, build-prägender Effekt. Kein Effekt
-/// bei leerer Ablage (siehe Player.TriggerAbility).
+/// löst beim Auslösen eine Auswahl aus (CharacterLoadout.DiscardChoiceOffered)
+/// - gleiches CardView-Klick-Auswahlprinzip wie die Level-up-Kartenwahl
+/// (Issue #15), hier aber aus der (geteilten) Ablage statt frisch gezogenen
+/// Karten. Die gewählte Karte wird direkt beim auslösenden Charakter
+/// ausgerüstet (Arena.OnDiscardChoiceOffered, Issue #26), alle anderen
+/// bleiben in der Ablage. Bewusst mit langem Cooldown (siehe
+/// CharacterLoadout.CooldownFor) als seltener, build-prägender Effekt. Kein
+/// Effekt bei leerer Ablage (siehe CharacterLoadout.TriggerAbility).
 /// </summary>
 public sealed class ErinnerungCard : CardDefinition
 {

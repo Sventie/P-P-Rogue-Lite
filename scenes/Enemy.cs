@@ -10,7 +10,7 @@ using CharacterEnemy = PPRogueLite.Character.Enemy;
 /// goblin-spezifische EnemyGoblin.cs ab): Bewegung/Angriff werden nicht
 /// pro Gegnertyp dupliziert, sondern über eine EnemyDefinition
 /// (PPRogueLite.Enemies, kein Godot-Bezug) datengetrieben verzweigt -
-/// analog zu Player.TriggerAbility, das über CardDefinition.Id switcht.
+/// analog zu CharacterLoadout.TriggerAbility, das über CardDefinition.Id switcht.
 ///
 /// Arena.SpawnEnemy() instanziert diese Szene, ruft AddChild() und danach
 /// Initialize(definition) auf (Godot-Lifecycle-Regel: _Ready() feuert

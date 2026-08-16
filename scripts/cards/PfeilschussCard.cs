@@ -5,12 +5,11 @@ using PPRogueLite.Combat;
 /// <summary>
 /// Aktionskarte, Fernkampf-Basisangriff des Bogenschützen (Issue #13):
 /// löst wie Hieb einen Angriff auf den nächsten Gegner aus (verdeckter W20
-/// + GES-Mod gegen RK), aber mit deutlich größerer Reichweite
-/// (Player.RangedAttackRange statt Player.MeleeRange). Die eigentliche
-/// Auflösung sitzt in Player.TriggerAbility (Fall "pfeilschuss") - diese
-/// Klasse ist nur die Datendefinition der Karte selbst. Startkarte des
-/// Bogenschützen (BogenschuetzeDefinition), aber schon jetzt über den
-/// Deck-Screen mit dem Krieger testbar.
+/// + GES-Mod gegen RK), aber mit deutlich größerer Reichweite. Die
+/// eigentliche Auflösung sitzt in CharacterLoadout.TriggerAbility (Fall
+/// "pfeilschuss", Issue #26) - diese Klasse ist nur die Datendefinition der
+/// Karte selbst. Startkarte des Bogenschützen (BogenschuetzeDefinition),
+/// aber schon jetzt über den Deck-Screen mit anderen Charakteren testbar.
 /// </summary>
 public sealed class PfeilschussCard : CardDefinition
 {

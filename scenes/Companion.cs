@@ -1,19 +1,22 @@
 namespace PPRogueLite;
 
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
+using PPRogueLite.Cards;
 using PPRogueLite.Character;
-using PPRogueLite.Combat;
 using PPRogueLite.Meta;
 
 /// <summary>
 /// Gruppenmitglied neben dem Hauptcharakter (Issue #5): eigene HP/RK aus
 /// seiner CharacterClassDefinition, folgt dem Leader über einen festen
 /// Formations-Versatz (kein Pathfinding, wie überall sonst im Projekt) und
-/// greift automatisch NUR mit seiner StartingCardId-Karte an (Hieb/
-/// Pfeilschuss/Arkaner Blitz) - Karten/Modifikatoren/Level-up gelten bisher
-/// ausschließlich für den Hauptcharakter (Player), bis die Kartenzuweisung
-/// pro Charakter existiert (Issue #26). Bewusst vereinfachte Trefferauflösung
-/// ohne Vorteil/Krit-Hooks, gleiches Prinzip wie ein gewöhnlicher Gegner.
+/// hat wie Player ein eigenes CharacterLoadout (Issue #26) - Karten werden
+/// beim Level-up gezielt einem Charakter der Gruppe zugewiesen, nicht mehr
+/// pauschal dem Hauptcharakter. Startet mit seiner StartingCardId-Karte
+/// (Hieb/Pfeilschuss/Arkaner Blitz je nach Klasse) ausgerüstet, kann danach
+/// über zugewiesene Level-up-Karten genauso wie Player wachsen - voller
+/// Mechanik-Umfang (Vorteil/Krit, gekoppelte Modifikatoren, Statuseffekte).
 ///
 /// Tötet ein Companion einen Gegner, landet die XP trotzdem im gemeinsamen
 /// Pool des Hauptcharakters (Enemy.TakeDamage ruft dafür Player.Instance
@@ -27,14 +30,11 @@ using PPRogueLite.Meta;
 public partial class Companion : Node2D, IPartyMember
 {
     private const float Radius = 13f;
-    private const float MeleeRange = 90f;
-    private const float RangedAttackRange = 300f;
     private const float FollowSpeed = 260f; // etwas schneller als Player.Speed, damit die Formation nicht dauerhaft hinterherhinkt
     private const float HpBarWidth = 26f;
     private const float HpBarHeight = 4f;
 
     private static readonly Color MissColor = new(0.662745f, 0.603922f, 0.470588f);
-    private static readonly Color HitColor = new(0.352941f, 0.478431f, 0.309804f);
     private static readonly Color HpBarBackground = new(0f, 0f, 0f, 0.5f);
     private static readonly Color HpBarFill = new(0.352941f, 0.478431f, 0.309804f);
 
@@ -42,23 +42,23 @@ public partial class Companion : Node2D, IPartyMember
 
     public Player Leader { get; private set; } = null!;
 
+    public CharacterLoadout Loadout { get; private set; } = null!;
+
     public Vector2 FormationOffset { get; set; }
 
     public int CurrentHp => _hp;
 
-    public int EffectiveArmorClass => _armorClass;
+    public int EffectiveArmorClass => _armorClass + Loadout.ArmorClassBonus;
 
     public bool IsDefeated => _hp <= 0;
 
-    private AbilityScores _stats = null!;
-    private string _abilityCardId = null!;
     private int _hp;
     private int _maxHp;
     private int _armorClass;
-    private float _cooldown;
-    private float _timer;
     private float _slowTimer;
     private float _slowMultiplier = 1f;
+    private float _hasteTimer;
+    private float _hasteMultiplier = 1f;
     private bool _disabled;
     private PackedScene _floatingTextScene = null!;
 
@@ -68,21 +68,34 @@ public partial class Companion : Node2D, IPartyMember
         _floatingTextScene = GD.Load<PackedScene>("res://scenes/FloatingText.tscn");
     }
 
-    /// <summary>Setzt Stats/Zugehörigkeit - erst nach AddChild() aufrufen (gleiche Node-Lifecycle-Regel wie Enemy.Initialize).</summary>
-    public void Initialize(OwnedCharacter owned, Player leader, Vector2 formationOffset, int? savedHp)
+    /// <summary>Setzt Stats/Zugehörigkeit/Loadout - erst nach AddChild() aufrufen (gleiche Node-Lifecycle-Regel wie Enemy.Initialize). savedEquippedCards ist nur bei einer Folge-Stage desselben Dungeons gesetzt (Issue #26); ist es null, wird stattdessen die Startkarte der Klasse ausgerüstet (gleiches Sicherheitsnetz-Prinzip wie bei Player).</summary>
+    public void Initialize(OwnedCharacter owned, Player leader, Vector2 formationOffset, int? savedHp, IReadOnlyList<CardDefinition>? savedEquippedCards)
     {
         Owned = owned;
         Leader = leader;
         FormationOffset = formationOffset;
 
         var definition = owned.ClassDefinition;
-        _stats = definition.BuildStats();
+        var stats = definition.BuildStats();
         _maxHp = definition.MaxHp;
         _hp = savedHp ?? _maxHp;
         _armorClass = definition.BaseArmorClass;
-        _abilityCardId = definition.StartingCardId;
-        _cooldown = CooldownFor(_abilityCardId);
-        _timer = _cooldown;
+
+        Loadout = new CharacterLoadout(this, this, stats);
+
+        if (savedEquippedCards is not null)
+        {
+            foreach (var card in savedEquippedCards)
+            {
+                Loadout.EquipCard(card);
+            }
+        }
+        else
+        {
+            var startingCard = CardCatalog.AllCardTypes().First(card => card.Id == definition.StartingCardId);
+            Loadout.EquipCard(startingCard);
+        }
+
         QueueRedraw();
     }
 
@@ -107,7 +120,7 @@ public partial class Companion : Node2D, IPartyMember
 
         float dt = (float)delta;
         FollowLeader(dt);
-        UpdateAbility(dt);
+        Loadout.Update(dt);
 
         if (_slowTimer > 0f)
         {
@@ -117,91 +130,22 @@ public partial class Companion : Node2D, IPartyMember
                 _slowMultiplier = 1f;
             }
         }
+
+        if (_hasteTimer > 0f)
+        {
+            _hasteTimer -= dt;
+            if (_hasteTimer <= 0f)
+            {
+                _hasteMultiplier = 1f;
+            }
+        }
     }
 
     private void FollowLeader(float delta)
     {
         var targetPosition = Leader.Position + FormationOffset;
-        Position = Position.MoveToward(targetPosition, FollowSpeed * _slowMultiplier * delta);
+        Position = Position.MoveToward(targetPosition, FollowSpeed * _slowMultiplier * _hasteMultiplier * delta);
     }
-
-    private void UpdateAbility(float delta)
-    {
-        _timer -= delta;
-        if (_timer > 0f)
-        {
-            return;
-        }
-
-        _timer = _cooldown;
-        TriggerAbility();
-    }
-
-    private void TriggerAbility()
-    {
-        (Ability ability, int damageDiceCount, int damageDie, float range) = _abilityCardId switch
-        {
-            "pfeilschuss" => (Ability.Dexterity, 1, 6, RangedAttackRange),
-            "arkaner_blitz" => (Ability.Intelligence, 1, 6, RangedAttackRange),
-            _ => (Ability.Strength, 1, 8, MeleeRange), // "hieb" - Startkarte von Krieger/Tank
-        };
-
-        var target = FindNearestEnemyInRange(range);
-        if (target is null)
-        {
-            return;
-        }
-
-        int modifier = _stats.Modifier(ability);
-        int roll = Dice.Roll(20);
-        bool hit = roll + modifier >= target.Stats.ArmorClass;
-
-        if (!hit)
-        {
-            SpawnFloatingText(target.Position, "Verfehlt", MissColor);
-            return;
-        }
-
-        int damage = modifier;
-        for (int i = 0; i < damageDiceCount; i++)
-        {
-            damage += Dice.Roll(damageDie);
-        }
-
-        target.TakeDamage(damage);
-        SpawnFloatingText(target.Position, damage.ToString(), HitColor);
-    }
-
-    private Enemy? FindNearestEnemyInRange(float range)
-    {
-        Enemy? nearest = null;
-        float nearestDistance = range;
-
-        foreach (Node node in GetTree().GetNodesInGroup("enemies"))
-        {
-            if (node is not Enemy enemy)
-            {
-                continue;
-            }
-
-            float distance = Position.DistanceTo(enemy.Position);
-            if (distance <= nearestDistance)
-            {
-                nearest = enemy;
-                nearestDistance = distance;
-            }
-        }
-
-        return nearest;
-    }
-
-    private static float CooldownFor(string cardId) => cardId switch
-    {
-        "hieb" => 1.0f,
-        "pfeilschuss" => 1.0f,
-        "arkaner_blitz" => 1.2f,
-        _ => 2.0f,
-    };
 
     private static Color ColorFor(string className) => className switch
     {
@@ -226,10 +170,22 @@ public partial class Companion : Node2D, IPartyMember
         QueueFree();
     }
 
+    public void Heal(int amount)
+    {
+        _hp = Mathf.Min(_maxHp, _hp + amount);
+        QueueRedraw();
+    }
+
     public void ApplySlow(float duration, float multiplier)
     {
         _slowTimer = duration;
         _slowMultiplier = multiplier;
+    }
+
+    public void ApplyHaste(float duration, float multiplier)
+    {
+        _hasteTimer = duration;
+        _hasteMultiplier = multiplier;
     }
 
     public void SetDisabled(bool disabled)

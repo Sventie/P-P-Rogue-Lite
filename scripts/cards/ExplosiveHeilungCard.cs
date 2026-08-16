@@ -6,8 +6,8 @@ using PPRogueLite.Combat;
 /// Modifikatorkarte, gekoppelte Spielart (Issue #12): hängt an einer
 /// bestimmten Aktionskarte (hier Atem holen) und löst zusätzlich zu deren
 /// normalem Effekt etwas aus. Die eigentliche Wirkung (AOE-Schaden beim
-/// Heilen) sitzt in Player.TriggerAbility (Fall "atemholen") - diese
-/// Klasse ist nur die Datendefinition der Karte selbst.
+/// Heilen) sitzt in CharacterLoadout.TriggerAbility (Fall "atemholen",
+/// Issue #26) - diese Klasse ist nur die Datendefinition der Karte selbst.
 /// </summary>
 public sealed class ExplosiveHeilungCard : CardDefinition
 {
