@@ -1,5 +1,6 @@
 namespace PPRogueLite;
 
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using PPRogueLite.Meta;
@@ -14,6 +15,12 @@ using PPRogueLite.Meta;
 /// Gefährten (Permadeath, Issue #7) werden ausgegraut und sind nicht mehr
 /// wählbar. Gleiches "bei jeder Änderung alles neu rendern"-Prinzip wie
 /// DeckScreen/Shop.
+///
+/// Seit dem Charakter-Shop (Issue #6) kann das Roster mehrere Gefährten
+/// derselben Klasse enthalten (z. B. zwei Bogenschützen, noch mit
+/// identischen Stats - Varianten sind Issue #29) - Panels zeigen dann
+/// zusätzlich eine laufende Nummer ("Bogenschütze #1"/"#2"), damit sie in
+/// der Liste unterscheidbar bleiben.
 /// </summary>
 public partial class PartyScreen : Control
 {
@@ -43,15 +50,29 @@ public partial class PartyScreen : Control
         _subtitleLabel.Text =
             $"Gefährten: {selectedCount} / {PlayerCharacterCollection.MaxCompanions} — {leaderDefinition.Name} ({leaderDefinition.ClassName}) ist als Hauptcharakter immer dabei.";
 
-        _rosterContainer.AddChild(BuildCharacterPanel(PlayerCharacterCollection.Leader, isLeader: true));
+        _rosterContainer.AddChild(BuildCharacterPanel(PlayerCharacterCollection.Leader, isLeader: true, suffix: string.Empty));
 
-        foreach (var companion in PlayerCharacterCollection.Roster.Where(character => character != PlayerCharacterCollection.Leader))
+        var companions = PlayerCharacterCollection.Roster
+            .Where(character => character != PlayerCharacterCollection.Leader)
+            .ToList();
+        var countByClass = companions
+            .GroupBy(character => character.ClassDefinition.ClassName)
+            .ToDictionary(group => group.Key, group => group.Count());
+        var seenByClass = new Dictionary<string, int>();
+
+        foreach (var companion in companions)
         {
-            _rosterContainer.AddChild(BuildCharacterPanel(companion, isLeader: false));
+            string className = companion.ClassDefinition.ClassName;
+            seenByClass.TryGetValue(className, out int seen);
+            seen++;
+            seenByClass[className] = seen;
+
+            string suffix = countByClass[className] > 1 ? $" #{seen}" : string.Empty;
+            _rosterContainer.AddChild(BuildCharacterPanel(companion, isLeader: false, suffix));
         }
     }
 
-    private Control BuildCharacterPanel(OwnedCharacter character, bool isLeader)
+    private Control BuildCharacterPanel(OwnedCharacter character, bool isLeader, string suffix)
     {
         var panel = new PanelContainer
         {
@@ -64,7 +85,7 @@ public partial class PartyScreen : Control
 
         var definition = character.ClassDefinition;
         vbox.AddChild(new Label { Text = definition.Name, ThemeTypeVariation = "CardTypeLabel" });
-        vbox.AddChild(new Label { Text = definition.ClassName });
+        vbox.AddChild(new Label { Text = definition.ClassName + suffix });
         vbox.AddChild(new Label { Text = $"HP {definition.MaxHp} · RK {definition.BaseArmorClass}" });
 
         if (!character.IsAlive)

@@ -206,7 +206,7 @@ public partial class Arena : Node2D
             var offset = CompanionFormationOffsets[i % CompanionFormationOffsets.Length];
             companion.Position = _player.Position + offset;
 
-            int? savedHp = DungeonRun.HasProgress && DungeonRun.SavedCompanionHp.TryGetValue(selected[i].ClassDefinition.ClassName, out int hp)
+            int? savedHp = DungeonRun.HasProgress && DungeonRun.SavedCompanionHp.TryGetValue(selected[i].Id, out int hp)
                 ? hp
                 : null;
             companion.Initialize(selected[i], _player, offset, savedHp);
@@ -376,7 +376,7 @@ public partial class Arena : Node2D
     /// <summary>Schreibt die aktuelle HP aller noch lebenden Companions in DungeonRun, damit die nächste Stage desselben Dungeons daran anknüpfen kann (gleiches Prinzip wie Player.SaveProgress).</summary>
     private void SaveCompanionProgress()
     {
-        var hp = new Dictionary<string, int>();
+        var hp = new Dictionary<Guid, int>();
         foreach (var companion in _companions)
         {
             if (!IsInstanceValid(companion))
@@ -384,7 +384,7 @@ public partial class Arena : Node2D
                 continue;
             }
 
-            hp[companion.Owned.ClassDefinition.ClassName] = companion.CurrentHp;
+            hp[companion.Owned.Id] = companion.CurrentHp;
         }
 
         DungeonRun.SaveCompanionHp(hp);

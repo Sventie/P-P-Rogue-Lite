@@ -4,22 +4,25 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using PPRogueLite.Cards;
+using PPRogueLite.Character;
 using PPRogueLite.Meta;
 using PPRogueLite.Shop;
 
 /// <summary>
 /// Shop (Issue #4), nur über die Taverne erreichbar (Hub.tscn - ersetzt
 /// den bisherigen "Mit Loot entkommen"-Platzhalter, siehe Hub.cs), nicht
-/// über das Lager zwischen zwei Stages. Zwei Bereiche mit Kartenkäufen
-/// plus ein Platzhalter für Charakter-Packs (Issue #6, braucht #13 -
-/// bewusst nur als sichtbarer, nicht funktionaler Abschnitt vorbereitet,
-/// gleiches Prinzip wie die Platzhalter-Buttons im Hub):
+/// über das Lager zwischen zwei Stages. Drei Bereiche:
 ///
 /// - Sonderangebote: 3 einzeln kaufbare, konkrete Karten (ShopState,
 ///   würfeln sich neu bei jedem Dungeon-Ende).
 /// - Kartenpacks: 5 Stufen (CardPackCatalog), jede würfelt beim Öffnen
 ///   PackCardCount Karten nach der Raritäts-Gewichtung der Stufe
 ///   (CardPackOpener) und zeigt sie in einem Popup (PackOpenLayer).
+/// - Charakter-Packs (Issue #6): 5 Stufen (CharacterPackCatalog), jede
+///   liefert genau einen zufälligen Archetyp (CharacterPackOpener) ins
+///   Roster (PlayerCharacterCollection.AddCharacter) - auch Duplikate
+///   einer bereits besessenen Klasse sind erlaubt. Der neue Charakter
+///   erscheint danach sofort in der Gruppenzusammenstellung (PartyScreen).
 ///
 /// Gekaufte Karten wandern immer in PlayerCardCollection.BenchCards -
 /// gleiches Prinzip wie alle neuen Karten bisher (erst über den
@@ -63,7 +66,7 @@ public partial class Shop : Control
 
         _contentBox.AddChild(BuildSpecialOffersSection());
         _contentBox.AddChild(BuildCardPacksSection());
-        _contentBox.AddChild(BuildCharacterPacksPlaceholder());
+        _contentBox.AddChild(BuildCharacterPacksSection());
     }
 
     private Control BuildSpecialOffersSection()
@@ -247,21 +250,124 @@ public partial class Shop : Control
         };
     }
 
-    /// <summary>Sichtbarer, aber nicht funktionaler Bereich (Issue #6, braucht #13 - noch keine Charaktere zum Verkaufen) - gleiches Platzhalter-Prinzip wie "Gruppe managen" im Hub.</summary>
-    private static Control BuildCharacterPacksPlaceholder()
+    /// <summary>Charakter-Packs (Issue #6): gleicher Aufbau wie BuildCardPacksSection, aber jede Stufe liefert genau einen zufälligen Archetyp statt mehrerer Karten.</summary>
+    private Control BuildCharacterPacksSection()
     {
         var section = new VBoxContainer();
         section.AddThemeConstantOverride("separation", 8);
         section.AddChild(new Label { Text = "Charakter-Packs", ThemeTypeVariation = "ColumnHeaderLabel" });
 
-        var panel = new PanelContainer { ThemeTypeVariation = "CardPanel" };
-        panel.AddChild(new Label
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 16);
+
+        foreach (var tier in CharacterPackCatalog.AllTiers)
         {
-            Text = "Bald verfügbar - neue Abenteurer für deine Gruppe.",
+            var panel = new PanelContainer { ThemeTypeVariation = "CardPanel" };
+            var column = new VBoxContainer { CustomMinimumSize = new Vector2(160, 0) };
+            column.AddThemeConstantOverride("separation", 6);
+
+            column.AddChild(new Label
+            {
+                Text = tier.DisplayName,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+            column.AddChild(new Label
+            {
+                Text = "1 zufälliger Charakter",
+                ThemeTypeVariation = "CardDescriptionLabel",
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+
+            var buyButton = new Button
+            {
+                Text = $"Öffnen ({tier.Price} Gold)",
+                SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+                Disabled = PlayerWallet.Gold < tier.Price,
+            };
+            buyButton.Pressed += () => OnBuyCharacterPack(tier);
+            column.AddChild(buyButton);
+
+            panel.AddChild(column);
+            row.AddChild(panel);
+        }
+
+        section.AddChild(row);
+        return section;
+    }
+
+    private void OnBuyCharacterPack(CharacterPackTier tier)
+    {
+        if (PlayerWallet.Gold < tier.Price)
+        {
+            return;
+        }
+
+        PlayerWallet.Gold -= tier.Price;
+        var definition = CharacterPackOpener.Open(tier);
+        PlayerCharacterCollection.AddCharacter(definition);
+
+        UpdateGoldLabel();
+        BuildContent();
+        ShowCharacterPackOpenPopup(definition);
+    }
+
+    /// <summary>Gleiches Popup-Prinzip wie ShowPackOpenPopup, nur mit einer kleinen Charakter-Vorschau (Name/Klasse/HP/RK) statt einer CardView, da ein Charakter keine Karte ist.</summary>
+    private void ShowCharacterPackOpenPopup(CharacterClassDefinition definition)
+    {
+        foreach (Node child in _packOpenLayer.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        var center = new CenterContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+            SizeFlagsVertical = Control.SizeFlags.Fill | Control.SizeFlags.Expand,
+        };
+
+        var panel = new PanelContainer { ThemeTypeVariation = "CardPanel" };
+        var vbox = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        vbox.AddThemeConstantOverride("separation", 12);
+
+        vbox.AddChild(new Label
+        {
+            Text = "Neuer Abenteurer:",
+            ThemeTypeVariation = "PopupHeaderLabel",
             HorizontalAlignment = HorizontalAlignment.Center,
         });
 
-        section.AddChild(panel);
-        return section;
+        var characterPanel = new PanelContainer { ThemeTypeVariation = "CardPanel", CustomMinimumSize = new Vector2(180, 0) };
+        var characterBox = new VBoxContainer();
+        characterBox.AddThemeConstantOverride("separation", 4);
+        characterBox.AddChild(new Label { Text = definition.Name, HorizontalAlignment = HorizontalAlignment.Center });
+        characterBox.AddChild(new Label { Text = definition.ClassName, HorizontalAlignment = HorizontalAlignment.Center });
+        characterBox.AddChild(new Label { Text = $"HP {definition.MaxHp} · RK {definition.BaseArmorClass}", HorizontalAlignment = HorizontalAlignment.Center });
+        characterPanel.AddChild(characterBox);
+        vbox.AddChild(characterPanel);
+
+        vbox.AddChild(new Label
+        {
+            Text = "In der Gruppenzusammenstellung ('Gruppe managen') wählbar.",
+            ThemeTypeVariation = "CardDescriptionLabel",
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+
+        var continueButton = new Button
+        {
+            Text = "Weiter",
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+        };
+        vbox.AddChild(continueButton);
+
+        panel.AddChild(vbox);
+        center.AddChild(panel);
+        _packOpenLayer.AddChild(center);
+        _packOpenLayer.Visible = true;
+
+        continueButton.Pressed += () =>
+        {
+            _packOpenLayer.Visible = false;
+            center.QueueFree();
+        };
     }
 }

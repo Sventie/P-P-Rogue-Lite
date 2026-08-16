@@ -10,9 +10,10 @@ using PPRogueLite.Character;
 /// Godot behält beim Szenenwechsel keinen Node-State).
 ///
 /// Alle 4 Archetypen aus CharacterClassCatalog sind von Start an im Besitz
-/// (Issue #5 - der Character-Shop aus Issue #6 existiert noch nicht, ein
-/// leerer Besitz hätte die Gruppen-Auswahl also ins Leere laufen lassen).
-/// Leader ist fest der Krieger (Hauptcharakter, weiterhin von Player.cs
+/// (Issue #5). Der Charakter-Shop (Issue #6) kann das Roster darüber hinaus
+/// erweitern - auch um weitere Exemplare einer bereits besessenen Klasse
+/// (z. B. ein zweiter Bogenschütze), siehe AddCharacter. Leader ist fest
+/// der ERSTE Krieger-Eintrag (Hauptcharakter, weiterhin von Player.cs
 /// gesteuert) - SelectedCompanions hält bis zu MaxCompanions zusätzliche
 /// Charaktere, die vor dem nächsten Dungeon frei neu zusammengestellt
 /// werden können; die zuletzt gewählte Gruppe bleibt als Vorschlag stehen
@@ -30,6 +31,14 @@ public static class PlayerCharacterCollection
         Roster.First(character => character.ClassDefinition == CharacterClassCatalog.Krieger);
 
     public static List<OwnedCharacter> SelectedCompanions { get; } = new();
+
+    /// <summary>Nimmt einen neu erworbenen Charakter ins Roster auf (Issue #6, Charakter-Shop) - erlaubt auch Duplikate einer bereits besessenen Klasse. Zufällige Stat-Varianten je nach Pack-Stufe sind bewusst noch nicht Teil davon, siehe Issue #29.</summary>
+    public static OwnedCharacter AddCharacter(CharacterClassDefinition classDefinition)
+    {
+        var character = new OwnedCharacter(classDefinition);
+        Roster.Add(character);
+        return character;
+    }
 
     /// <summary>Wird ein Gruppenmitglied besiegt (Companion.TakeDamage, Issue #7): dauerhaft aus dem Roster entfernt (bleibt aber als Datensatz erhalten, nur nicht mehr wählbar/lebend) und aus der aktuellen Gruppenauswahl geworfen. Betrifft nie den Leader - dessen Niederlage beendet stattdessen sofort den Run (siehe Arena._Process).</summary>
     public static void MarkDead(OwnedCharacter character)
