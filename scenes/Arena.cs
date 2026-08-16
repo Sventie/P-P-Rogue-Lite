@@ -584,14 +584,15 @@ public partial class Arena : Node2D
         cardsRow.AddThemeConstantOverride("separation", 16);
         choiceColumn.AddChild(cardsRow);
 
+        var pendingCardViews = new List<(CardView View, CardDefinition Card)>();
         var selection = new TaskCompletionSource<CardDefinition>();
         foreach (var candidate in candidates)
         {
             var cardView = _cardViewScene.Instantiate<CardView>();
             cardsRow.AddChild(cardView);
             cardView.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
-            cardView.Populate(candidate);
             cardView.Clicked += () => selection.TrySetResult(candidate);
+            pendingCardViews.Add((cardView, candidate));
         }
 
         var sheetColumn = BuildCharacterSheet();
@@ -604,6 +605,17 @@ public partial class Arena : Node2D
         row.AddChild(sheetColumn);
 
         _levelUpLayer.AddChild(row);
+
+        // Populate() erst jetzt, wo die CardViews wirklich im lebenden
+        // SceneTree hängen (_levelUpLayer ist bereits Teil des Baums) - vorher
+        // war cardsRow nur an einen noch nicht angehängten Zwischen-Container
+        // gehängt, _Ready() der CardViews war also noch nicht gelaufen
+        // (NullReferenceException in CardView.Populate, siehe CLAUDE.md
+        // Node-Lifecycle-Learning).
+        foreach (var (view, candidate) in pendingCardViews)
+        {
+            view.Populate(candidate);
+        }
 
         var chosen = await selection.Task;
 
@@ -660,14 +672,15 @@ public partial class Arena : Node2D
             .Select(group => (Card: group.First(), Count: group.Count()))
             .OrderBy(entry => entry.Card.DisplayName);
 
+        var pendingCardViews = new List<(CardView View, CardDefinition Card, int Count)>();
         var selection = new TaskCompletionSource<CardDefinition>();
         foreach (var (card, count) in grouped)
         {
             var cardView = _cardViewScene.Instantiate<CardView>();
             cardsRow.AddChild(cardView);
             cardView.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
-            cardView.Populate(card, count);
             cardView.Clicked += () => selection.TrySetResult(card);
+            pendingCardViews.Add((cardView, card, count));
         }
 
         var sheetColumn = BuildCharacterSheet();
@@ -680,6 +693,13 @@ public partial class Arena : Node2D
         row.AddChild(sheetColumn);
 
         _levelUpLayer.AddChild(row);
+
+        // Populate() erst nach dem Anhängen an den lebenden SceneTree, siehe
+        // OnCardChoiceOffered/CLAUDE.md Node-Lifecycle-Learning.
+        foreach (var (view, card, count) in pendingCardViews)
+        {
+            view.Populate(card, count);
+        }
 
         var chosen = await selection.Task;
         var takenCard = _player.RunDeck.TakeFromDiscard(chosen.Id);

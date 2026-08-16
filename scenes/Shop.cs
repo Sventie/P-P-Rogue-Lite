@@ -64,12 +64,22 @@ public partial class Shop : Control
             child.QueueFree();
         }
 
-        _contentBox.AddChild(BuildSpecialOffersSection());
+        BuildSpecialOffersSection();
         _contentBox.AddChild(BuildCardPacksSection());
         _contentBox.AddChild(BuildCharacterPacksSection());
     }
 
-    private Control BuildSpecialOffersSection()
+    /// <summary>
+    /// Hängt die Sonderangebote-Sektion direkt an _contentBox (statt sie wie
+    /// die anderen Sektionen erst am Ende zurückzugeben) - CardView.Populate
+    /// greift auf Felder zu, die erst in _Ready() gesetzt werden, und
+    /// _Ready() feuert erst, sobald der Node wirklich im lebenden SceneTree
+    /// hängt (siehe CLAUDE.md Node-Lifecycle-Learning). Ein noch nicht an
+    /// _contentBox angehängter Zwischen-Container reicht dafür nicht -
+    /// deshalb hier: Karten zunächst nur anhängen, Populate erst NACH dem
+    /// Anhängen der ganzen Sektion an _contentBox.
+    /// </summary>
+    private void BuildSpecialOffersSection()
     {
         var section = new VBoxContainer();
         section.AddThemeConstantOverride("separation", 8);
@@ -82,12 +92,14 @@ public partial class Shop : Control
                 Text = "Keine Sonderangebote mehr - neue nach dem nächsten Dungeon.",
                 ThemeTypeVariation = "CardDescriptionLabel",
             });
-            return section;
+            _contentBox.AddChild(section);
+            return;
         }
 
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 16);
 
+        var pendingCardViews = new List<(CardView View, CardDefinition Card)>();
         foreach (var card in ShopState.SpecialOffers)
         {
             int price = CardPackCatalog.SpecialOfferPriceFor(card.Rarity);
@@ -97,7 +109,7 @@ public partial class Shop : Control
 
             var cardView = _cardViewScene.Instantiate<CardView>();
             column.AddChild(cardView);
-            cardView.Populate(card);
+            pendingCardViews.Add((cardView, card));
 
             var buyButton = new Button
             {
@@ -112,7 +124,12 @@ public partial class Shop : Control
         }
 
         section.AddChild(row);
-        return section;
+        _contentBox.AddChild(section);
+
+        foreach (var (view, card) in pendingCardViews)
+        {
+            view.Populate(card);
+        }
     }
 
     private void OnBuySpecialOffer(CardDefinition card, int price)
@@ -222,11 +239,12 @@ public partial class Shop : Control
 
         var cardsRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         cardsRow.AddThemeConstantOverride("separation", 16);
+        var pendingCardViews = new List<(CardView View, CardDefinition Card)>();
         foreach (var card in cards)
         {
             var cardView = _cardViewScene.Instantiate<CardView>();
             cardsRow.AddChild(cardView);
-            cardView.Populate(card);
+            pendingCardViews.Add((cardView, card));
         }
 
         vbox.AddChild(cardsRow);
@@ -242,6 +260,14 @@ public partial class Shop : Control
         center.AddChild(panel);
         _packOpenLayer.AddChild(center);
         _packOpenLayer.Visible = true;
+
+        // Populate() erst nach dem Anhängen an den lebenden SceneTree (siehe
+        // BuildSpecialOffersSection/CLAUDE.md Node-Lifecycle-Learning) -
+        // vorher war cardsRow nur an ein noch nicht angehängtes vbox gehängt.
+        foreach (var (view, card) in pendingCardViews)
+        {
+            view.Populate(card);
+        }
 
         continueButton.Pressed += () =>
         {
